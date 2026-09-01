@@ -24,7 +24,7 @@ PROOF OF DONE:
   - [PASS] Probe 24/24 as both users: new tables reject cross-org composite-FK
     attacks with code 23503; cross-org reads return 0 rows (own org proven
     non-empty first, so the zero is not vacuous).
-    shiplog/evidence/r1-probe-20260901-042430.txt
+    shiplog/evidence/r1-probe-final-24checks.txt
   - [PASS] R1a: RLS enabled + policies on all 9 public tables.
 AUDITOR: PASS (2nd attempt; 1st REJECT with catches #14, #15 + four minor
 findings, all addressed). ASSUMED-list items accepted: a deleted user's audit

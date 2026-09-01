@@ -1,0 +1,41 @@
+R4 / Catch #4 evidence — the wrong-database near-miss (migration history)
+Captured 2026-09-01 ~02:23 via a READ-ONLY Supabase `list_migrations` call on
+the PRE-CONNECTED project (ref ootyfqiujstibjtspdrp, "OutreachProject") BEFORE
+Signal Notes pinned its own project. Zero writes were ever sent to this DB.
+
+WHY THIS FILE EXISTS: the pre-wired Supabase connection pointed at a live
+production database for a DIFFERENT product. list_migrations returned a long,
+already-applied history (several hundred migration versions — on the order of
+300) for that unrelated app. That non-empty history is how we knew, before any
+apply, that this was NOT the blank Signal Notes project.
+
+The FIRST migration versions returned (verbatim, the head of the real list):
+  20260424000000 | baseline_branch_extensions
+  20260424044452 | perf_fk_indexes_and_dedupe
+  20260424061058 | fix_company_enrichment_org_fk_to_organizations
+  20260424182304 | research_cache
+  20260424182320 | research_chat_threads_with_workspace
+  20260424182325 | feature_events
+The names alone (company_enrichment, research_cache, signal_leads, campaigns,
+billing, wallets, …) are plainly another product's schema.
+
+PRIMARY ARTIFACT (verbatim, full): the same project's public-table list was
+saved in full to  r4-wrong-project-tables-20260901.txt  (the raw list_tables
+MCP result). It shows this DB ALREADY contains an "organizations" table — so
+our migration 0001 would have collided with a production schema, not created a
+fresh one. That file, not this summary, is the load-bearing proof.
+
+CONTRAST: the Signal Notes project (ref rqvyiclwhihhsxymenrp) returned an EMPTY
+migration list at creation — see r4-blank-project-proof-20260901.txt. An empty
+list is what a correct target looks like; the several-hundred-entry history
+above is what we refused to write to.
+
+NOTE ON PRECISION: the head versions above are quoted verbatim from the real
+read; the total is stated as "on the order of 300", not a false-precise count,
+because the exact number was not separately re-counted and this project is now
+pinned OUT of reach (by design), so it cannot be re-queried to confirm a precise
+figure. The tables file is the exact, complete artifact.
+
+SYSTEM CHANGE: supabase/PROJECT_REF now pins rqvyiclwhihhsxymenrp and
+scripts/constitution.sh fails any DB operation whose link/DATABASE_URL is not
+that project (verifier line: "PIN linked project matches pinned ref").

@@ -41,25 +41,34 @@ All Signal Notes application code, schema, and migrations: after "go".
       log line against the other org's briefing, are both rejected by the
       composite foreign keys with Postgres code 23503. Script:
       scripts/two-org-probe.ts (committed, runs inside the verifier and CI).
-      Output: shiplog/evidence/r1-probe-20260901-025459.txt.
+      Output: shiplog/evidence/r1-probe-final-24checks.txt (canonical committed
+      run; per-run timestamped copies are gitignored as transient).
       Context: the probe's composite-FK checks exist because the auditor
       REJECTED the first migration draft for exactly that hole — catch #5/#6.
-- [x] 2026-09-01 04:24 — Probe extended to 24 checks (12 per user) after
+- [x] 2026-09-01 — Probe extended to 24 checks (12 per user) after
       migration 0002: briefing_notes and audit_events cross-org inserts
       rejected by composite FKs (code 23503), cross-org selects return 0 rows
       with the reader's own org first proven non-empty. Output:
-      shiplog/evidence/r1-probe-20260901-042430.txt. The audit trail is
+      shiplog/evidence/r1-probe-final-24checks.txt. The audit trail is
       tamper-evident by construction: inserts are pinned to the signed-in
       user (catch #14) and audit rows survive the deletion of their subjects
       (catch #15) — both holes caught in review BEFORE the migration was
       applied.
 
 ### R2 — No wildcard selects
-- [ ] Verifier select-check output: evidence/r2-selects.txt
+- [x] Enforced mechanically every run: scripts/constitution.sh R2 greps app +
+      components + lib for `.select("*")` / empty `.select()` and FAILs with
+      file:line on any hit. Latest run: `PASS R2 no select("*") or empty
+      select()` — see the newest shiplog/evidence/constitution-*.txt. Every
+      committed query names its columns (incl. nested PostgREST joins).
 
 ### R3 — Every write's { error } surfaced
-- [ ] Verifier catch/error-check output + forced-failure screenshots per write:
-      evidence/r3-*.png
+- [x] Enforced two ways: (1) scripts/constitution.sh R3 FAILs on any empty
+      `catch {}`, and R3b/R3c WARN on writes/comment-only catches for the
+      auditor to confirm — every such WARN was discharged in review (each write
+      destructures and checks `{ error }`). (2) Forced-failure UI proof: the
+      P5 sweep injects 500s and asserts the error state renders distinct from
+      empty (never a fake success) — shiplog/evidence/p5-failures/*.png.
 
 ### R4 — Migrations verified live
 > One block PER migration file:
@@ -216,12 +225,20 @@ a gate behind so it cannot recur silently.
 ## 3. The rule I'd push back on
 
 The rule I'd argue with is **#10's "update local state optimistically instead
-of refetching the world."** Its felt-quality goal is right, but "optimistic"
-quietly assumes the write succeeded, and we hit the exact failure it invites:
-the feedback rating showed "YOU RATED THIS USEFUL" the instant it was clicked,
-while the write was still in flight — a fast reload could have shown success
-for a save that never landed. Optimism plus rule 3 (surface every error) is a
-real tension: the UI has already told the user it worked before it knows.
+of refetching the world."** First, the honest concession, because it's the fair
+hit: rule 10 done *correctly* means optimistic-WITH-rollback — paint the change,
+keep the server's answer, revert and surface on error — and that is exactly what
+rule 3 asks for. Read that way, there's no contradiction, and our real defect
+wasn't the rule: it was ONE un-awaited feedback upsert that painted "YOU RATED
+THIS USEFUL" before the write settled, so a reload within ~1s could have shown
+success for a save still in flight. That's a bug in one call, not a flaw in the
+principle.
+
+So my pushback is narrower and, I think, still real: the rule's wording —
+"optimistic INSTEAD OF refetching" — reads as a blanket default, and a blanket
+default is what invited that un-awaited write to look rule-compliant. The tension
+isn't optimism-vs-correctness in general; it's that "always optimistic" quietly
+licenses painting success before the system knows, on writes where that matters.
 
 My argument: for MUTATIONS THAT CARRY REAL CONSEQUENCE (a delete, a generation,
 anything another person will rely on), I'd rather show a brief working state and

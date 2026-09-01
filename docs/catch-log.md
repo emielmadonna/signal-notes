@@ -247,3 +247,24 @@ specs without asserting unobserved results, builders don't add them.
 - FIX + SYSTEM CHANGE: empty text blocks are dropped before the assistant turn
   is echoed back into the tool loop (thinking + tool_use order preserved).
   Bug pre-dated the rule-5 change (that move was byte-identical).
+
+## Catch #20 — 2026-09-01 06:xx (Mock-Wren round 1, rehearsal)
+- CLAIM: the submission's evidence pointers all resolve; the decision cards and
+  SHIPLOG state exactly what the gates do.
+- VICTIM: Emiel in the live walkthrough — the flagship catch #4 ("wrong
+  production DB") cited shiplog/evidence/r4-wrong-project-migrations.txt, which
+  was never saved; Wren's first move is "show me the file," and it would 404 on
+  the proudest story. Plus D05 oversold a WARN as an auto-block, and SHIPLOG §1
+  left R2/R3 as unchecked boxes with placeholder filenames.
+- THE CATCH: the Mock-Wren rehearsal agent, playing both sides against the real
+  repo, tried to open every cited file and argued the other side of each
+  decision. Full transcript: deliverables/MOCK-WREN-ROUND-1.md.
+- FIX + SYSTEM CHANGE: created the missing evidence from genuinely-observed data
+  (no false precision — count stated as "~300", head quoted verbatim, the
+  saved tables file named as the load-bearing artifact); canonical committed
+  probe proof (r1-probe-final-24checks.txt) replacing gitignored timestamped
+  refs; R2/R3 boxes filled with the real verifier evidence; D05 scoped to
+  "WARN, surfaced-not-auto-blocked"; SHIPLOG §3 concedes optimistic-with-
+  rollback is the correct reading. Standing rule: a dead-pointer sweep
+  (grep evidence filenames, test -f each) runs before any submission is called
+  done — no claim may cite a file that doesn't exist.

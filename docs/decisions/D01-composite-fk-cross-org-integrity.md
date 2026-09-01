@@ -25,7 +25,7 @@ integrity of parent/child org agreement is enforced in the schema, below RLS.
 - Proof: two-org probe 16/16, including cross-org composite-FK insert attempts
   rejected with Postgres code 23503 — `shiplog/evidence/r1-probe-20260901-025459.txt`.
   Extended to 24/24 after migration 0002 —
-  `shiplog/evidence/r1-probe-20260901-042430.txt`. Runs in CI on every push.
+  `shiplog/evidence/r1-probe-final-24checks.txt`. Runs in CI on every push.
 
 **THE LIKELY PUSHBACK / ANSWER.**
 "Isn't RLS enough on its own?" — No; foreign keys bypass RLS, so a member could
