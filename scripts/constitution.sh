@@ -79,6 +79,25 @@ if grep -rn 'NEXT_PUBLIC_[A-Z_]*ANTHROPIC' .env* $SRC_DIRS 2>/dev/null | tee -a 
   FAIL=1
 fi
 
+# PROJECT PIN: every DB operation must target the pinned Signal Notes project.
+# Added after catch #4 (a pre-connected production DB for another product was
+# one apply_migration away from being polluted).
+if [ -f supabase/PROJECT_REF ]; then
+  PIN=$(tr -d '[:space:]' < supabase/PROJECT_REF)
+  LINKED=$(tr -d '[:space:]' < supabase/.temp/project-ref 2>/dev/null || echo "")
+  if [ -n "$LINKED" ] && [ "$LINKED" != "$PIN" ]; then
+    say "FAIL" "PIN linked project ($LINKED) is not the pinned Signal Notes project ($PIN)"
+    FAIL=1
+  else
+    say "PASS" "PIN linked project matches pinned ref $PIN"
+  fi
+  if [ -n "${DATABASE_URL:-}" ] && ! printf '%s' "$DATABASE_URL" | grep -q "$PIN"; then
+    say "FAIL" "PIN DATABASE_URL does not point at pinned project $PIN — refusing DB checks"
+    FAIL=1
+    DATABASE_URL=""
+  fi
+fi
+
 # ---- Live database checks (need DATABASE_URL; skipped until foundation phase) ----
 if [ -n "${DATABASE_URL:-}" ]; then
   # R1a: every public table has RLS enabled and at least one policy

@@ -36,3 +36,20 @@ DISPATCHER'S task spec; the builder reproduced spec wording faithfully. Blame
 reassigned: the unobserved claim originated with me (dispatcher). The fix and
 system change stand — and the builder-prompt rule now cuts both ways: I write
 specs without asserting unobserved results, builders don't add them.
+
+## Catch #4 — 2026-09-01 02:23 (P1, before any database write)
+- CLAIM: (implicit) the Supabase connection available to the agents is the
+  Signal Notes project, ready for migration 0001.
+- VICTIM: A live production database for a different product. Its migration
+  history shows ~300 applied migrations (campaigns, contacts, billing, wallets)
+  and it ALREADY contains an "organizations" table — applying our migration
+  0001 there would have collided with production schema, partially applied,
+  and put Signal Notes RLS policies onto another product's tables.
+- THE CATCH: Dispatcher ran list_migrations + list_tables read-only checks
+  BEFORE any write, per "prove, don't assume". Evidence: the pasted migration
+  list (300 foreign versions) and project URL ootyfqiujstibjtspdrp.supabase.co
+  in the session log; evidence/r4-wrong-project-migrations.txt.
+- FIX + SYSTEM CHANGE: Zero writes were sent to that project. Signal Notes gets
+  its own freshly created blank project; the project ref will be pinned in the
+  repo (checked by the verifier before any DB operation) so no agent can ever
+  aim a migration at the wrong database again.
