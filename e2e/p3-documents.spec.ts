@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signIn, evidence, USERS } from "./helpers";
+import { signIn, evidence, uploadAddedOrSkip, USERS } from "./helpers";
 import path from "node:path";
 
 /**
@@ -48,8 +48,9 @@ test("upload path: TXT file through the sheet's browse input", async ({ page }) 
   await page.goto("/documents/new");
   const fixture = path.join(process.cwd(), "e2e", "fixtures", "e2e-upload.txt");
   await page.locator('input[type="file"]').setInputFiles(fixture);
-  // canvas: drop/browse → upload → toast "<file> added"
-  await expect(page.getByText(/e2e-upload\.txt.*added|added/).first()).toBeVisible({ timeout: 20_000 });
+  // canvas: drop/browse → upload → toast "<file> added". A shared-DB rate
+  // limiter refusal is a SKIP (path not exercised), never a red (helpers).
+  await uploadAddedOrSkip(page, /e2e-upload\.txt.*added|added/, 20_000);
   await page.goto("/");
   await expect(page.locator("main").getByText("e2e-upload").first()).toBeVisible({ timeout: 15_000 });
 });

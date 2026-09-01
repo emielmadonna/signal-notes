@@ -34,6 +34,45 @@ type Case = {
 const NUL = Buffer.from([0x00]);
 const utf8 = (s: string) => Buffer.from(s, "utf8");
 
+/**
+ * POST one case to the upload route, waiting out the rate limiter if it
+ * objects. The limiter's counters are per-user in the SHARED database
+ * (30 uploads / 5 min, migration 0003), so this suite — thirteen uploads in a
+ * few seconds — can legitimately be held back mid-run whenever another sweep
+ * or a deployment probe spent the same user's budget moments earlier. A 429
+ * here is the control working, not the defect this suite exists to catch, so
+ * it is absorbed by honoring the route's own Retry-After (bounded, twice)
+ * rather than reported as a failure. Any OTHER status still reaches the
+ * assertions untouched.
+ */
+async function postUpload(
+  page: import("@playwright/test").Page,
+  c: Case,
+  title: string
+) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await page.request.post("/api/documents/upload", {
+      multipart: {
+        file: {
+          name: c.name,
+          mimeType: "application/octet-stream",
+          buffer: c.body(),
+        },
+        kind: "other",
+        title,
+      },
+      timeout: 60_000,
+    });
+    if (res.status() !== 429 || attempt >= 2) return res;
+    const advertised = Number(res.headers()["retry-after"] ?? "60");
+    const waitS = Math.min(Number.isFinite(advertised) ? advertised : 60, 150) + 2;
+    console.log(
+      `${c.name}: rate-limited (429); honoring Retry-After and re-posting in ${waitS}s`
+    );
+    await new Promise((r) => setTimeout(r, waitS * 1000));
+  }
+}
+
 const CASES: Case[] = [
   // --- catch #23: characters Postgres cannot hold --------------------------
   {
@@ -127,7 +166,9 @@ const CASES: Case[] = [
 test("ingestion: every supported type lands, every refusal explains itself", async ({
   page,
 }) => {
-  test.setTimeout(180_000);
+  // Generous: postUpload may wait out the shared rate limiter's window
+  // (up to two bounded Retry-After holds) on a contended database.
+  test.setTimeout(600_000);
   await signIn(page, USERS.northwind.email);
 
   const created: string[] = [];
@@ -135,18 +176,7 @@ test("ingestion: every supported type lands, every refusal explains itself", asy
 
   for (const c of CASES) {
     const title = `E2E ingest ${c.name}`;
-    const res = await page.request.post("/api/documents/upload", {
-      multipart: {
-        file: {
-          name: c.name,
-          mimeType: "application/octet-stream",
-          buffer: c.body(),
-        },
-        kind: "other",
-        title,
-      },
-      timeout: 60_000,
-    });
+    const res = await postUpload(page, c, title);
     const payload = (await res.json()) as {
       document?: { id: string; ext: string };
       error?: string;

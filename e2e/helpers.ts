@@ -88,6 +88,51 @@ export async function reachGenerationSurfaceOrSkip(page: Page): Promise<void> {
   ).toBe("arrived");
 }
 
+/**
+ * Wait for a just-picked file's "added" toast — or SKIP if the upload rate
+ * limiter (30 per 5 minutes per user, migration 0003) refused it.
+ *
+ * The limiter's counters live in the shared database and are PER USER, so a
+ * CI sweep that follows another run — or overlaps a deployment probe — can
+ * legitimately be refused mid-suite. That is the control working exactly as
+ * designed, and the truthful report is "this path was not exercised", not "the
+ * product is broken" (the same reasoning as reachGenerationSurfaceOrSkip
+ * above). The skip is conditioned on OBSERVING the limiter's own message in
+ * the UI, never on a generic failure: anything else still fails the test.
+ */
+export async function uploadAddedOrSkip(
+  page: Page,
+  expected: RegExp,
+  timeout = 25_000
+): Promise<void> {
+  const never = new Promise<never>(() => {});
+  const ok = page
+    .getByText(expected)
+    .first()
+    .waitFor({ state: "visible", timeout })
+    .then(() => "added" as const)
+    .catch(() => never);
+  const limited = page
+    .getByText(/uploaded a lot of files in a short time/i)
+    .first()
+    .waitFor({ state: "visible", timeout })
+    .then(() => "limited" as const)
+    .catch(() => never);
+  const timedOut = new Promise<"timeout">((r) =>
+    setTimeout(() => r("timeout"), timeout + 1_000)
+  );
+
+  const outcome = await Promise.race([ok, limited, timedOut]);
+  test.skip(
+    outcome === "limited",
+    "The upload rate limit (30/5min, migration 0003) refused this file, so the live path was not exercised. Wait for the window to roll over and re-run."
+  );
+  expect(
+    outcome,
+    `the file was picked but the sheet never showed ${expected}`
+  ).toBe("added");
+}
+
 /** Sign in through the real form, like a user would. */
 export async function signIn(page: Page, email: string): Promise<void> {
   await page.goto("/signin");
