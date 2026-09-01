@@ -1,21 +1,9 @@
-"use client";
-
-// /documents/new — the ADD DOCUMENT sheet on its own route (card-008).
-// Renders the default-width (740) sheet over the app background; closing
-// (scrim click, Escape, ✕) or a successful save returns to the workspace
-// at "/", whose lists refetch on mount. The optimistic-prepend seam
-// (useWorkspaceData().addDocumentToList) is for the dispatcher to wire when
-// this sheet is mounted inside the workspace itself.
-import { useRouter } from "next/navigation";
-import { AddDocumentSheet } from "@/components/add-document/add-document-sheet";
+// /documents/new — kept as a deep link (bookmarks, e2e, old references), but
+// the ADD DOCUMENT sheet itself now mounts INSIDE the workspace so it overlays
+// the live lists instead of a bare background. This route just hands off:
+// /?add=1 opens the sheet over the workspace (components/workspace/workspace).
+import { redirect } from "next/navigation";
 
 export default function NewDocumentPage() {
-  const router = useRouter();
-  const goHome = () => router.push("/");
-
-  return (
-    <main style={{ minHeight: "100dvh", background: "var(--sn-bg)" }}>
-      <AddDocumentSheet onClose={goHome} onSaved={goHome} />
-    </main>
-  );
+  redirect("/?add=1");
 }

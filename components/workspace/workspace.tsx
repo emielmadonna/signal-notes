@@ -13,6 +13,7 @@ import {
   useSelection,
   type SelectionItem,
 } from "@/components/selection-bar";
+import { AddDocumentSheet } from "@/components/add-document/add-document-sheet";
 import { DangerButton, GhostButton } from "@/components/ui-sn/buttons";
 import { MicroFaint, MicroLabel } from "@/components/ui-sn/micro";
 import { Sheet } from "@/components/ui-sn/sheet";
@@ -173,8 +174,32 @@ function WorkspaceInner({
   // real behavior (the not-found sheet answers meanwhile). ---------------
   // TODO(card-009): /documents/[id] — the document sheet route.
   const openDocument = (id: string) => router.push(`/documents/${id}`);
-  // TODO(card-008): /documents/new — the add-document sheet route.
-  const openAddDocument = () => router.push("/documents/new");
+  // card-008 follow-through: the ADD DOCUMENT sheet mounts HERE, over the
+  // live workspace — the sheet's scrim shows the lists behind it instead of
+  // a bare background (which read as "a new blank screen"). /documents/new
+  // still works as a deep link: it redirects to /?add=1, which this state
+  // picks up below, mirroring the ?use= handoff pattern.
+  const [addingDocument, setAddingDocument] = useState(
+    () => searchParams.get("add") === "1"
+  );
+  const openAddDocument = () => setAddingDocument(true);
+  const closeAddDocument = useCallback(() => {
+    setAddingDocument(false);
+    // Clean /?add=1 out of the URL so refresh/back don't reopen the sheet.
+    if (searchParams.get("add") === "1") router.replace("/", { scroll: false });
+  }, [router, searchParams]);
+  // Re-open the sheet when the URL gains ?add=1 while this component is
+  // already mounted (the quick menu links to it). Written as React's
+  // documented "adjust state while rendering" pattern rather than a
+  // setState inside an effect: the effect version renders once with the
+  // stale value and then immediately again, and it is the exact shape
+  // react-hooks/set-state-in-effect exists to flag.
+  const addParam = searchParams.get("add");
+  const [lastAddParam, setLastAddParam] = useState(addParam);
+  if (addParam !== lastAddParam) {
+    setLastAddParam(addParam);
+    if (addParam === "1") setAddingDocument(true);
+  }
   // card-011 wiring: a generating OR failed briefing opens the live
   // GENERATION surface (which resumes via the events endpoint); a complete
   // briefing opens the reading view (card-012 — navigating there is real
@@ -412,6 +437,19 @@ function WorkspaceInner({
         }
         deleting={deletingDocs}
       />
+
+      {/* ADD DOCUMENT sheet, over the live workspace. A saved document is
+          prepended optimistically (the seam card-008 left for exactly this)
+          — no refetch-the-world (R10). */}
+      {addingDocument ? (
+        <AddDocumentSheet
+          onClose={closeAddDocument}
+          onSaved={(doc) => {
+            addDocumentToList(doc);
+            closeAddDocument();
+          }}
+        />
+      ) : null}
 
       {/* DELETE confirm sheet — exact canvas copy for documents. */}
       {confirmingDelete ? (

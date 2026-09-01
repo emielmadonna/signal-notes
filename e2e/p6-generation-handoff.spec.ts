@@ -57,7 +57,13 @@ test("a finished run opens the briefing by itself", async ({ page }) => {
   const reader = page.getByRole("dialog");
   await expect(reader).toBeVisible({ timeout: 15_000 });
   await expect(reader.getByText(/COMPLETE/).first()).toBeVisible();
-  await expect(reader.getByText("GROUNDED IN")).toBeVisible();
+  // exact: true — this assertion lives inside the reading view, whose body is
+  // MODEL-GENERATED prose. getByText() matches substrings, so the run that
+  // wrote "Because the source is limited, this briefing is grounded in …"
+  // made the locator resolve to two elements and the test failed on a strict
+  // mode violation. A UI label must be asserted as a label, or the briefing's
+  // own words can break the suite at random.
+  await expect(reader.getByText("GROUNDED IN", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: /generation log/i })
   ).toHaveAttribute("aria-expanded", "false");

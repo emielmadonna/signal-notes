@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { signIn, evidence, uploadAddedOrSkip, USERS } from "./helpers";
+import { Client } from "pg";
+import { signIn, evidence, loadEnv, uploadAddedOrSkip, USERS } from "./helpers";
 import path from "node:path";
 
 /**
@@ -26,15 +27,21 @@ test("workspace renders real seeded documents and briefings state", async ({ pag
 test("add document: missing-title state, then paste path saves", async ({ page }) => {
   await signIn(page, USERS.northwind.email);
   await page.getByText("Add document").click();
-  await expect(page).toHaveURL(/\/documents\/new/);
+  // The sheet now mounts OVER the live workspace (no route change): the
+  // dialog is up, the workspace lists are still behind it — so every
+  // interaction below is scoped to the dialog, or it would also match the
+  // live tiles showing through the scrim.
+  const sheet = page.getByRole("dialog", { name: /add a document/i });
+  await expect(sheet).toBeVisible({ timeout: 10_000 });
+  await expect(page).toHaveURL(/\/(\?.*)?$/);
   // missing-title guidance (canvas copy) on save with empty title
-  await page.getByRole("button", { name: /save document/i }).click();
-  await expect(page.getByText(/A title is how you'll find this later/)).toBeVisible();
+  await sheet.getByRole("button", { name: /save document/i }).click();
+  await expect(sheet.getByText(/A title is how you'll find this later/)).toBeVisible();
   await evidence(page, "p3-live", "add-doc-missing-title");
   // fill and save
-  await page.locator("input.sn-add-field").fill(PASTE_TITLE);
-  await page.getByRole("button", { name: "Call transcript" }).click();
-  await page.locator("textarea").first().fill(
+  await sheet.locator("input.sn-add-field").fill(PASTE_TITLE);
+  await sheet.getByRole("button", { name: "Call transcript", exact: true }).click();
+  await sheet.locator("textarea").first().fill(
     "E2E transcript body. Speaker one: this document was pasted by the automated live sweep.\n\nSpeaker two: and its whole lifecycle is verified — save, rename, history, delete."
   );
   await page.getByRole("button", { name: /save document/i }).click();
@@ -93,11 +100,47 @@ test("delete via selection bar: confirm sheet, working state, tile gone", async 
   await evidence(page, "p3-live", "delete-confirm-sheet");
   await page.getByRole("dialog").getByRole("button", { name: /^delete$/i }).click();
   await expect(page.locator("main").getByText(RENAMED_TITLE)).toHaveCount(0, { timeout: 15_000 });
-  // also delete the uploaded fixture doc to keep the org tidy
-  await page.locator("main").getByText("e2e-upload").first().click();
-  await page.getByRole("button", { name: "Delete", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: /^delete$/i }).click();
-  await expect(page.locator("main").getByText("e2e-upload")).toHaveCount(0, { timeout: 15_000 });
+  // NOTE: this spec deliberately does NOT clean up p5-upload's "e2e-upload"
+  // fixtures THROUGH THE UI. That belongs to the spec that creates them, and
+  // doing it here by text was actively harmful:
+  //
+  //   page.locator("main").getByText("e2e-upload").first().click()
+  //
+  // getByText matches substrings, and the workspace renders an AUDIT TRAIL
+  // whose lines survive the deletion of the documents they describe (decision
+  // D07; migration 0002 does it with `on delete set null`). There are already
+  // 89 such rows naming "e2e-upload", none removable through the app because
+  // audit_events has no DELETE policy by design. So .first() selected an audit
+  // line rather than a tile, no Delete button ever appeared, and the test hung
+  // for its full 60 s timeout — then left a real document behind, which made
+  // p5-upload fail too. One loose selector, two red tests, neither of them
+  // about anything that was actually broken in the product.
+});
+
+/**
+ * Leave the org as we found it — the DB way, not the UI way (see the note
+ * above for why UI-side cleanup was harmful). This spec's upload test writes
+ * a real e2e-upload.txt row and must not hand it down to p5-upload, whose
+ * delete assertion counts the "Open e2e-upload…" tiles and expects its OWN
+ * upload to be the only one (a green p3 upload otherwise guarantees a red
+ * p5). Same pattern as p6-ingestion's afterAll.
+ */
+test.afterAll(async () => {
+  loadEnv();
+  const url = process.env.DATABASE_URL;
+  if (!url) return;
+  const client = new Client({
+    connectionString: url,
+    ssl: { rejectUnauthorized: false },
+  });
+  await client.connect();
+  try {
+    await client.query(
+      "delete from public.documents where file_name = 'e2e-upload.txt' and title = 'e2e-upload'"
+    );
+  } finally {
+    await client.end();
+  }
 });
 
 test("search filters both sections with canvas subs", async ({ page }) => {
