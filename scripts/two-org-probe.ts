@@ -116,8 +116,8 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const seedPassword = process.env.SEED_USER_PASSWORD;
 
 const USERS = [
-  { label: "Ana (Northwind Advisory)", email: "ana@northwind-advisory.test" },
-  { label: "Marta (Meridian Group)", email: "marta@meridiangroup.test" },
+  { label: "Admin (Northwind Advisory)", email: "admin@admin.admin" },
+  { label: "Admin2 (Meridian Group)", email: "admin2@admin.admin" },
 ] as const;
 
 type Session = {

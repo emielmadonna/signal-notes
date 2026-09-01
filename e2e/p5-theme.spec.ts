@@ -18,8 +18,8 @@ const COMPLETE_BRIEFING = "345eef7d-ace6-486e-ba49-2d38a4a7f37a";
 test("workspace: real toggle flips data-theme both ways and persists across reload", async ({
   page,
 }) => {
-  await signIn(page, USERS.ana.email);
-  await expect(page.getByText(USERS.ana.org).first()).toBeVisible({
+  await signIn(page, USERS.northwind.email);
+  await expect(page.getByText(USERS.northwind.org).first()).toBeVisible({
     timeout: 15_000,
   });
   // Dark is the default.
@@ -43,7 +43,7 @@ test("workspace: real toggle flips data-theme both ways and persists across relo
 test("reading view: both themes apply on <html>, persist across reload, and are photographed", async ({
   page,
 }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto(`/briefings/${COMPLETE_BRIEFING}`);
   await expect(
     page.getByRole("heading", { name: /Three Conversations, One Pattern/i })

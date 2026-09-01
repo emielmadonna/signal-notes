@@ -22,13 +22,13 @@ test("Marta (org B) deep-linking an org-A document id → not-found, never org-A
   page,
 }) => {
   // First, capture a REAL org-A document id the honest way, as Ana.
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   const orgADocId = await firstOwnDocumentId(page);
 
   // Become Marta: drop Ana's session entirely, then sign in fresh.
   await page.context().clearCookies();
-  await signIn(page, USERS.marta.email);
-  await expect(page.getByText(USERS.marta.org).first()).toBeVisible({
+  await signIn(page, USERS.meridian.email);
+  await expect(page.getByText(USERS.meridian.org).first()).toBeVisible({
     timeout: 15_000,
   });
 
@@ -48,7 +48,7 @@ test("Marta (org B) deep-linking an org-A document id → not-found, never org-A
 test("Marta (org B) deep-linking an org-A briefing id → not-found, never org-A content", async ({
   page,
 }) => {
-  await signIn(page, USERS.marta.email);
+  await signIn(page, USERS.meridian.email);
   await page.goto(`/briefings/${ORG_A_BRIEFING}`);
   await expect(page.getByText("This page doesn't exist.")).toBeVisible({
     timeout: 15_000,
@@ -69,7 +69,7 @@ test("Marta (org B) deep-linking an org-A briefing /generating id → not-found"
 }) => {
   // The live generation surface is org-scoped the same way: a cross-org id
   // resumes nothing and renders not-found, never org-A's streamed log.
-  await signIn(page, USERS.marta.email);
+  await signIn(page, USERS.meridian.email);
   await page.goto(`/briefings/${ORG_A_BRIEFING}/generating`);
   await expect(page.getByText("This page doesn't exist.")).toBeVisible({
     timeout: 20_000,

@@ -43,8 +43,8 @@ test("sign-in at 768px holds", async ({ page }) => {
 });
 
 test("workspace at 768px holds", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
-  await expect(page.getByText(USERS.ana.org).first()).toBeVisible({
+  await signIn(page, USERS.northwind.email);
+  await expect(page.getByText(USERS.northwind.org).first()).toBeVisible({
     timeout: 15_000,
   });
   // Wait for the documents section to settle out of loading.
@@ -54,7 +54,7 @@ test("workspace at 768px holds", async ({ page }) => {
 });
 
 test("add-document at 768px holds", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto("/documents/new");
   await expect(page.getByRole("button", { name: /save document/i })).toBeVisible({
     timeout: 15_000,
@@ -64,7 +64,7 @@ test("add-document at 768px holds", async ({ page }) => {
 });
 
 test("document sheet at 768px holds", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   const docId = await firstOwnDocumentId(page);
   await page.goto(`/documents/${docId}`);
   // The sheet has rendered its body (not the not-found / loading state).
@@ -75,7 +75,7 @@ test("document sheet at 768px holds", async ({ page }) => {
 });
 
 test("composer at 768px holds", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto("/compose");
   await expect(
     page.getByText(/a briefing with no sources would just be a guess/i)
@@ -87,7 +87,7 @@ test("composer at 768px holds", async ({ page }) => {
 test("generation surface at 768px holds (complete briefing /generating)", async ({
   page,
 }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto(`/briefings/${COMPLETE_BRIEFING}/generating`);
   await expect(page.getByText(/COMPLETE/i).first()).toBeVisible({
     timeout: 30_000,
@@ -97,7 +97,7 @@ test("generation surface at 768px holds (complete briefing /generating)", async 
 });
 
 test("reading view at 768px holds", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto(`/briefings/${COMPLETE_BRIEFING}`);
   await expect(
     page.getByRole("heading", { name: /Three Conversations, One Pattern/i })

@@ -9,7 +9,7 @@ import { signIn, evidence, USERS } from "./helpers";
 test.describe.configure({ mode: "serial" });
 
 test("composer: model picker, zero-selected copy, pick + generate", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto("/compose");
   // zero selected: the disabled-at-zero explanation
   await expect(
@@ -29,7 +29,7 @@ test("composer: model picker, zero-selected copy, pick + generate", async ({ pag
 
 test("live generation: stream a real briefing to completion", async ({ page }) => {
   test.setTimeout(180_000); // real model generation
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto("/compose");
   const tiles = page.locator("main").getByText(/Interview notes|Call transcript|Homepage copy/);
   await tiles.nth(0).click();
@@ -47,7 +47,7 @@ test("live generation: stream a real briefing to completion", async ({ page }) =
 
 test("resume view: the existing complete briefing replays its log", async ({ page }) => {
   const id = "345eef7d-ace6-486e-ba49-2d38a4a7f37a";
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto(`/briefings/${id}/generating`);
   // replays persisted events → shows COMPLETE + the real streamed body
   await expect(page.getByText(/COMPLETE/i).first()).toBeVisible({ timeout: 30_000 });
@@ -56,7 +56,7 @@ test("resume view: the existing complete briefing replays its log", async ({ pag
 
 test("reading view: citations tooltip, grounding chips, feedback persists, log + audit", async ({ page }) => {
   const id = "345eef7d-ace6-486e-ba49-2d38a4a7f37a";
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto(`/briefings/${id}`);
   // real title + grounded-in row
   await expect(page.getByRole("heading", { name: /Three Conversations, One Pattern/i })).toBeVisible({ timeout: 20_000 });

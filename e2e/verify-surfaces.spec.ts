@@ -12,7 +12,7 @@ test("capture every surface at 1440", async ({ page }) => {
   await page.goto("/signin");
   await evidence(page, "verify", "01-signin");
   // 2. WORKSPACE (populated: seeded docs)
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.waitForTimeout(1500);
   await evidence(page, "verify", "02-workspace");
   // 3. QUICK MENU (hover New briefing)

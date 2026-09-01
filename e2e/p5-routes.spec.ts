@@ -58,10 +58,10 @@ test("sign-in page itself loads unauthenticated", async ({ page }) => {
 test("a signed-in visit to /signin bounces to the workspace", async ({
   page,
 }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto("/signin");
   await expect(page).toHaveURL((u) => u.pathname === "/");
-  await expect(page.getByText(USERS.ana.org).first()).toBeVisible({
+  await expect(page.getByText(USERS.northwind.org).first()).toBeVisible({
     timeout: 15_000,
   });
 });

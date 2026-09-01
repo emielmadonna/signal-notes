@@ -14,7 +14,7 @@ const PASTE_TITLE = `E2E paste ${Date.now()}`;
 const RENAMED_TITLE = `${PASTE_TITLE} (renamed)`;
 
 test("workspace renders real seeded documents and briefings state", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   // briefings: either the honest empty state or real cards — never error
   await expect(page.getByText("We couldn't load your briefings.")).toHaveCount(0);
   // seeded docs: a known seeded tile renders
@@ -24,7 +24,7 @@ test("workspace renders real seeded documents and briefings state", async ({ pag
 });
 
 test("add document: missing-title state, then paste path saves", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.getByText("Add document").click();
   await expect(page).toHaveURL(/\/documents\/new/);
   // missing-title guidance (canvas copy) on save with empty title
@@ -44,7 +44,7 @@ test("add document: missing-title state, then paste path saves", async ({ page }
 });
 
 test("upload path: TXT file through the sheet's browse input", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto("/documents/new");
   const fixture = path.join(process.cwd(), "e2e", "fixtures", "e2e-upload.txt");
   await page.locator('input[type="file"]').setInputFiles(fixture);
@@ -55,7 +55,7 @@ test("upload path: TXT file through the sheet's browse input", async ({ page }) 
 });
 
 test("document sheet: body, file history shows UPLOADED/created line", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   const tile = page.locator("main").getByText(PASTE_TITLE).first();
   await tile.hover();
   await page.getByRole("button", { name: `Open ${PASTE_TITLE}` }).click();
@@ -66,7 +66,7 @@ test("document sheet: body, file history shows UPLOADED/created line", async ({ 
 });
 
 test("rename via selection bar: working state, SAVED, optimistic tile", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.locator("main").getByText(PASTE_TITLE).first().click(); // select tile
   await expect(page.getByText("1 document selected")).toBeVisible();
   await evidence(page, "p3-live", "selection-bar");
@@ -83,7 +83,7 @@ test("rename via selection bar: working state, SAVED, optimistic tile", async ({
 });
 
 test("delete via selection bar: confirm sheet, working state, tile gone", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.locator("main").getByText(RENAMED_TITLE).first().click();
   await expect(page.getByText("1 document selected")).toBeVisible();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
@@ -100,7 +100,7 @@ test("delete via selection bar: confirm sheet, working state, tile gone", async 
 });
 
 test("search filters both sections with canvas subs", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.getByPlaceholder(/search briefings and documents/i).fill("Callisto");
   await expect(page.getByText(/OF \d+ FILES/)).toBeVisible({ timeout: 10_000 });
   await evidence(page, "p3-live", "search-filtered");
@@ -109,7 +109,7 @@ test("search filters both sections with canvas subs", async ({ page }) => {
 test("cross-org document id renders not-found (isolation's UX face)", async ({ page }) => {
   const anaDocId = process.env.E2E_CROSS_ORG_DOC_ID;
   test.skip(!anaDocId, "E2E_CROSS_ORG_DOC_ID not provided");
-  await signIn(page, USERS.marta.email);
+  await signIn(page, USERS.meridian.email);
   await page.goto(`/documents/${anaDocId}`);
   await expect(page.getByText("This page doesn't exist.")).toBeVisible({ timeout: 15_000 });
   await evidence(page, "p3-live", "cross-org-not-found");

@@ -32,7 +32,7 @@ const fulfill500 = (route: Route) =>
 test("forced 500 on documents → error state, not fake-empty; briefings stay healthy", async ({
   page,
 }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   // Fail ONLY the documents request; leave briefings untouched.
   await page.route("**/rest/v1/documents**", fulfill500);
   await page.reload();
@@ -60,7 +60,7 @@ test("forced 500 on documents → error state, not fake-empty; briefings stay he
 test("forced 500 on briefings → error state; documents stay healthy", async ({
   page,
 }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.route("**/rest/v1/briefings**", fulfill500);
   await page.reload();
 
@@ -78,7 +78,7 @@ test("forced 500 on briefings → error state; documents stay healthy", async ({
 test("retry recovers: unroute, click Try again → the section repopulates", async ({
   page,
 }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.route("**/rest/v1/documents**", fulfill500);
   await page.reload();
   await expect(page.getByText("We couldn't load your documents.")).toBeVisible({
@@ -99,7 +99,7 @@ test("retry recovers: unroute, click Try again → the section repopulates", asy
 test("aborted documents fetch → error state, never a stale/empty render", async ({
   page,
 }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   // A dropped connection (route.abort) is the transport-failure half of rule 9.
   await page.route("**/rest/v1/documents**", (route) => route.abort());
   await page.reload();
@@ -113,7 +113,7 @@ test("aborted documents fetch → error state, never a stale/empty render", asyn
 test("nonexistent document id → not-found sheet (not error, not blank)", async ({
   page,
 }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto(`/documents/${NONEXISTENT_UUID}`);
   await expect(page.getByText("This page doesn't exist.")).toBeVisible({
     timeout: 15_000,
@@ -125,7 +125,7 @@ test("nonexistent document id → not-found sheet (not error, not blank)", async
 test("nonexistent briefing id → not-found sheet (not error, not blank)", async ({
   page,
 }) => {
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto(`/briefings/${NONEXISTENT_UUID}`);
   await expect(page.getByText("This page doesn't exist.")).toBeVisible({
     timeout: 15_000,

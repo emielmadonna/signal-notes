@@ -13,11 +13,11 @@ test("sign-in surface: populated, error, expired — both themes", async ({ page
   await expect(page.getByText("Briefings grounded in your own documents.")).toBeVisible();
 
   // wrong-password error state (real submit, real error, form stays filled)
-  await page.locator('input[type="email"]').fill(USERS.ana.email);
+  await page.locator('input[type="email"]').fill(USERS.northwind.email);
   await page.locator('input[type="password"]').fill("definitely-wrong-password");
   await page.getByRole("button", { name: /sign in/i }).click();
   await expect(page.getByText("That email and password don't match.")).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('input[type="email"]')).toHaveValue(USERS.ana.email);
+  await expect(page.locator('input[type="email"]')).toHaveValue(USERS.northwind.email);
   await evidence(page, "p2-visual", "signin-error-dark");
 
   // expired variant
@@ -31,16 +31,16 @@ test("sign-in surface: populated, error, expired — both themes", async ({ page
 });
 
 test("workspace shell live: org name, sections, account menu, theme toggle", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
-  await expect(page.getByText(USERS.ana.org).first()).toBeVisible({ timeout: 15_000 });
+  await signIn(page, USERS.northwind.email);
+  await expect(page.getByText(USERS.northwind.org).first()).toBeVisible({ timeout: 15_000 });
   // documents are seeded → the documents section must NOT show empty or error
   await expect(page.getByText("We couldn't load your documents.")).toHaveCount(0);
   await evidence(page, "p2-visual", "workspace-dark");
 
   // account menu (open via click)
-  await page.getByText(USERS.ana.org).first().click();
+  await page.getByText(USERS.northwind.org).first().click();
   await expect(page.getByText("SIGNED IN AS")).toBeVisible();
-  await expect(page.getByText(USERS.ana.email)).toBeVisible();
+  await expect(page.getByText(USERS.northwind.email)).toBeVisible();
   await expect(page.getByText("Switch account")).toHaveCount(0); // D3: cut
   await evidence(page, "p2-visual", "workspace-account-menu-dark");
   await page.keyboard.press("Escape");
@@ -65,7 +65,7 @@ test("not-found + auth wall + 768px", async ({ page }) => {
   await page.goto("/briefings/does-not-exist");
   await expect(page).toHaveURL(/\/signin\?next=/);
 
-  await signIn(page, USERS.ana.email);
+  await signIn(page, USERS.northwind.email);
   await page.goto("/definitely-not-a-page");
   await expect(page.getByText("This page doesn't exist.")).toBeVisible();
   await evidence(page, "p2-visual", "not-found-dark");

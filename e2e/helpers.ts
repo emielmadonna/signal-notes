@@ -13,8 +13,9 @@ export function loadEnv(): void {
 }
 
 export const USERS = {
-  ana: { email: "ana@northwind-advisory.test", org: "Northwind Advisory" },
-  marta: { email: "marta@meridiangroup.test", org: "Meridian Group" },
+  // The two org admin accounts (one per org, no overlap).
+  northwind: { email: "admin@admin.admin", org: "Northwind Advisory" },
+  meridian: { email: "admin2@admin.admin", org: "Meridian Group" },
 };
 
 export function seedPassword(): string {

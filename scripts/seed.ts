@@ -1,6 +1,6 @@
 // scripts/seed.ts — idempotent seed for Signal Notes.
 //
-// Creates two organizations ("Northwind Advisory", "Meridian Group"), one user
+// Creates two organizations ("Northwind Advisory", "Meridian Group"), one admin user (admin@admin.admin / admin2@admin.admin)
 // each, membership rows, and six realistic documents per organization (each
 // with its file type and byte size, plus one UPLOADED audit-trail line). Safe
 // to run twice: everything is looked up before it is created, and documents
@@ -169,7 +169,7 @@ const meridianDocuments: SeedDocument[] = [
 
 /**
  * Audit-trail display label: the email's full local part, uppercased in the
- * canvas's mono style — ana@… -> "ANA", marta@… -> "MARTA". Display only; the
+ * canvas mono style — admin@… -> "ADMIN", admin2@… -> "ADMIN2". Display only; the
  * verified identity lives in audit_events.actor_user_id.
  */
 function actorFromEmail(email: string): string {
@@ -305,23 +305,28 @@ async function ensureDocument(
 async function main(): Promise<void> {
   console.log("Seeding Signal Notes…");
 
+  // The two org admin accounts — one per org, no overlap. Each is the sole
+  // seeded member (and therefore the admin) of its organization.
+  const NORTHWIND_ADMIN = "admin@admin.admin";
+  const MERIDIAN_ADMIN = "admin2@admin.admin";
+
   const northwindId = await getOrCreateOrg("Northwind Advisory");
   const meridianId = await getOrCreateOrg("Meridian Group");
 
-  const anaId = await getOrCreateUser("ana@northwind-advisory.test");
-  const martaId = await getOrCreateUser("marta@meridiangroup.test");
+  const northwindAdminId = await getOrCreateUser(NORTHWIND_ADMIN);
+  const meridianAdminId = await getOrCreateUser(MERIDIAN_ADMIN);
 
-  await ensureMembership(northwindId, anaId);
-  await ensureMembership(meridianId, martaId);
+  await ensureMembership(northwindId, northwindAdminId);
+  await ensureMembership(meridianId, meridianAdminId);
 
-  const anaActor = actorFromEmail("ana@northwind-advisory.test");
-  const martaActor = actorFromEmail("marta@meridiangroup.test");
+  const northwindActor = actorFromEmail(NORTHWIND_ADMIN);
+  const meridianActor = actorFromEmail(MERIDIAN_ADMIN);
 
   for (const doc of northwindDocuments) {
-    await ensureDocument(northwindId, anaId, anaActor, doc);
+    await ensureDocument(northwindId, northwindAdminId, northwindActor, doc);
   }
   for (const doc of meridianDocuments) {
-    await ensureDocument(meridianId, martaId, martaActor, doc);
+    await ensureDocument(meridianId, meridianAdminId, meridianActor, doc);
   }
 
   if (passwordFromEnv) {
