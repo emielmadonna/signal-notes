@@ -30,20 +30,24 @@
 // Run with:  npx tsx scripts/two-org-probe.ts   (from the repo root, after the
 // migration is applied and scripts/seed.ts has run)
 //
-// Env (read from .env.local via the tiny loader below — no dotenv dependency):
-//   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SEED_USER_PASSWORD
+// Env: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+// SEED_USER_PASSWORD. Each may come from the process environment (CI) or from
+// .env.local at the repo root (local runs; optional fallback, read by the tiny
+// loader below — no dotenv dependency).
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { readFileSync, existsSync } from "node:fs";
 import * as path from "node:path";
 
 // --- tiny .env.local loader (no dotenv dependency) --------------------------
+// .env.local is an OPTIONAL fallback: when the file is absent (e.g. a clean CI
+// checkout where the variables arrive via the process environment), continue
+// silently. Variables already set in the environment are never overridden.
 
 function loadEnvLocal(): void {
   const envPath = path.resolve(process.cwd(), ".env.local");
   if (!existsSync(envPath)) {
-    console.error(`No .env.local found at ${envPath}. Run this from the repo root.`);
-    process.exit(1);
+    return;
   }
   const lines = readFileSync(envPath, "utf8").split("\n");
   for (const rawLine of lines) {
@@ -67,21 +71,27 @@ function loadEnvLocal(): void {
 
 loadEnvLocal();
 
+// Validate AFTER loading: each variable may come from the process environment
+// (CI) or from .env.local (local runs). Fatal only when a variable is missing
+// from BOTH sources, naming the variable and both places it could come from.
+const REQUIRED_VARS = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SEED_USER_PASSWORD",
+] as const;
+const missingVars = REQUIRED_VARS.filter((name) => !process.env[name]);
+if (missingVars.length > 0) {
+  for (const name of missingVars) {
+    console.error(
+      `Missing required variable ${name}: set it in the process environment (CI) or in .env.local at the repo root (local runs).`
+    );
+  }
+  process.exit(1);
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const seedPassword = process.env.SEED_USER_PASSWORD;
-if (!supabaseUrl || !anonKey) {
-  console.error(
-    "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local."
-  );
-  process.exit(1);
-}
-if (!seedPassword) {
-  console.error(
-    "Missing SEED_USER_PASSWORD in .env.local — the probe needs it to sign in as the seeded users."
-  );
-  process.exit(1);
-}
 
 const USERS = [
   { label: "Ana (Northwind Advisory)", email: "ana@northwind-advisory.test" },

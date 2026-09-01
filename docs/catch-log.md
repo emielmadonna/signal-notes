@@ -122,3 +122,19 @@ specs without asserting unobserved results, builders don't add them.
 - FIX + SYSTEM CHANGE: the verifier now generates those types itself before
   type-checking, so local and CI runs check the same thing. The fix is proven
   by the next CI run on this same branch.
+
+## Catch #11 — 2026-09-01 03:16 (CI live-check runs, via the new evidence artifact)
+- CLAIM: the two-org probe "runs inside the verifier and CI" (SHIPLOG R1 entry).
+- VICTIM: the CI isolation gate — it can never pass on GitHub, so either every
+  push stays red or someone eventually mutes the one check that guards against
+  cross-tenant leaks.
+- THE CATCH: the probe failed opaquely in CI twice; the newly added evidence
+  artifact surfaced the real reason: the scripts' env loader hard-requires a
+  .env.local file and dies on a clean checkout — even with every needed
+  variable already present in the environment. Evidence:
+  r1-probe-20260901-101617.txt ("No .env.local found ... Run this from the
+  repo root."), GitHub runs 33495059559 / 33496288128.
+- FIX + SYSTEM CHANGE: loader treats .env.local as an optional fallback and
+  fatals only when a required variable is missing from BOTH sources; CI now
+  uploads evidence artifacts on failure so no gate can fail unreadably again.
+  (GitHub secrets were also re-set newline-free as hygiene while diagnosing.)
