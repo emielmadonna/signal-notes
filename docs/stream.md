@@ -57,3 +57,4 @@
 03:21:36 | dispatcher | The loader fix is proven in both modes on this machine. Committing and pushing so the GitHub check can run the isolation probe itself.
 03:23:39 | dispatcher | GitHub now runs the full gate itself: live database checks, the sixteen-check isolation probe, types, and the build — all green. The safety net no longer depends on my machine.
 03:35:51 | dispatcher | Emiel approves cards 001-004. Merging the foundation into main; the production deploy follows automatically. The approved design canvas has arrived — P2 begins.
+03:37:57 | dispatcher | The approved design canvas is in the repo and distilled into a build spec: two themes, one workspace screen, sheets for every surface, live streaming as the centerpiece. Plan revised; a second migration and a full end-to-end test suite are now on it. Builder-4 starts on tokens and primitives.

@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,300..600;1,7..72,300..500&family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#C79A2E}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:rgba(140,135,125,.35);border-radius:20px}::-webkit-scrollbar-track{background:transparent}
+@keyframes sn-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes sn-fade{from{opacity:0}to{opacity:1}}
+@keyframes sn-line{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes sn-blink{0%,55%{opacity:1}56%,100%{opacity:.15}}
+@keyframes sn-shim{0%{background-position:-340px 0}100%{background-position:340px 0}}
+@keyframes sn-sweep{0%{transform:translateX(-120%)}100%{transform:translateX(420%)}}
+@keyframes sn-pulse{0%,100%{opacity:.35}50%{opacity:1}}
+</style>
+</helmet>
+
+<div style="{{ appStyle }}">
+
+  <!-- HEADER -->
+  <div style="{{ headerStyle }}">
+    <div style="display:flex;align-items:center;gap:11px;min-width:0">
+      <span style="display:flex">{{ markIcon }}</span>
+      <span style="font-family:Literata,Georgia,serif;font-size:17px;letter-spacing:-.01em;white-space:nowrap">Signal Notes</span>
+    </div>
+    <div style="flex:1;min-width:8px"></div>
+    <div style="{{ searchWrap }}">
+      {{ searchIcon }}
+      <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Search briefings and documents…" style="{{ searchInput }}">
+    </div>
+    <button onClick="{{ toggleTheme }}" style="{{ themeBtn }}">{{ themeIcon }}{{ themeLabel }}</button>
+    <div onMouseEnter="{{ quickOn }}" onMouseLeave="{{ quickOff }}" style="position:relative;flex:none;padding-bottom:8px;margin-bottom:-8px">
+      <button onClick="{{ openCompose }}" style="{{ primaryBtn }}">{{ sparkIcon }}New briefing</button>
+      <div style="{{ quickMenu }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px 10px">
+          <span style="{{ microLabel }}">RECENT DOCUMENTS</span>
+          <span style="{{ microAccent }}">{{ countShort }}</span>
+        </div>
+        <sc-for list="{{ quickDocs }}" as="q" hint-placeholder-count="4">
+          <button onClick="{{ q.toggle }}" style="{{ q.row }}">
+            <span style="{{ q.icon }}"><span style="{{ q.fold }}"></span><span style="{{ q.label }}">{{ q.ext }}</span></span>
+            <span style="flex:1;min-width:0;text-align:left;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ q.name }}</span>
+            <span style="{{ q.box }}">{{ q.check }}</span>
+          </button>
+        </sc-for>
+        <div style="{{ quickFoot }}">
+          <button onClick="{{ startGen }}" style="{{ quickGen }}">Generate briefing</button>
+          <button onClick="{{ openCompose }}" style="{{ linkBtn }}">All documents</button>
+        </div>
+      </div>
+    </div>
+    <div onMouseLeave="{{ closeAccount }}" style="position:relative;flex:none">
+      <button onClick="{{ toggleAccount }}" style="{{ accountBtn }}">
+        <span style="{{ avatarStyle }}">ME</span>
+        <span style="text-align:left;line-height:1.2">
+          <span style="display:block;font-size:12.5px;white-space:nowrap">Mara Ellison</span>
+          <span style="{{ orgLine }}">Northwind Advisory</span>
+        </span>
+        {{ chevIcon }}
+      </button>
+      <sc-if value="{{ accountOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ accountMenu }}">
+          <div style="{{ menuHead }}">
+            <div style="{{ microLabel }}">SIGNED IN AS</div>
+            <div style="font-size:12.5px;margin-top:5px">mara@northwindadvisory.com</div>
+          </div>
+          <div style="{{ menuSection }}">
+            <div style="{{ microLabel }};padding:0 15px 6px">WORKSPACE</div>
+            <div style="{{ menuRowActive }}">Northwind Advisory{{ checkIcon }}</div>
+            <div style="{{ menuRow }}">Switch account…</div>
+          </div>
+          <button onClick="{{ signOut }}" style="{{ menuBtn }}">Sign out</button>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <div style="{{ scrollPad }}">
+
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <sc-for list="{{ stateTabs }}" as="t" hint-placeholder-count="6">
+          <button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- BRIEFINGS -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <h2 style="{{ h2Style }}">Briefings</h2>
+      <span style="{{ microLabel }}">{{ briefSub }}</span>
+    </div>
+
+    <sc-if value="{{ isPopulated }}" hint-placeholder-val="{{ true }}">
+      <div style="{{ bentoGrid }}">
+        <sc-for list="{{ briefCards }}" as="b" hint-placeholder-count="4">
+          <div ref="{{ b.cellRef }}" onMouseEnter="{{ b.on }}" onMouseLeave="{{ b.off }}" style="{{ b.cell }}">
+            <button onClick="{{ b.open }}" style="{{ b.card }}">
+              <span style="{{ b.margin }}"></span>
+              <span style="{{ b.rules }}"></span>
+              <span style="position:relative;display:flex;justify-content:space-between;align-items:center;padding:12px 16px 0 48px;font-size:13px;line-height:1.4">
+                <span style="{{ b.dateStyle }}">{{ b.date }}</span>
+                <span style="{{ b.stamp }}">{{ b.status }}</span>
+              </span>
+              <span style="position:relative;display:block;padding:8px 16px 0 48px;text-align:left;font-size:13px;line-height:1.4">
+                <span style="{{ b.titleStyle }}">{{ b.title }}</span>
+                <span style="{{ b.subStyle }}">{{ b.sub }}</span>
+              </span>
+              <span style="position:relative;display:flex;justify-content:space-between;align-items:center;padding:10px 16px 14px 48px;font-size:13px;line-height:1.4">
+                <span style="{{ b.metaStyle }}">{{ b.count }}</span><span style="{{ b.noteStyle }}">{{ b.notes }}</span><span style="{{ b.metaStyle }}">{{ b.rating }}</span>
+              </span>
+            </button>
+            <button onClick="{{ b.remove }}" style="{{ b.delBtn }}">{{ trashIcon }}</button>
+            <div style="{{ b.tray }}">
+              <div style="{{ b.trayHead }}">ATTACHED DOCUMENTS</div>
+              <sc-for list="{{ b.sources }}" as="d" hint-placeholder-count="3">
+                <button onClick="{{ d.open }}" style="{{ d.row }}">
+                  <span style="{{ d.icon }}"><span style="{{ d.fold }}"></span><span style="{{ d.label }}">{{ d.ext }}</span></span>
+                  <span style="flex:1;min-width:0;text-align:left;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ d.file }}</span>
+                  <span style="{{ d.size }}">{{ d.sizeText }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+      <div style="{{ emptyBox }}">
+        <div style="font-family:Literata,Georgia,serif;font-size:20px">No briefings yet.</div>
+        <p style="{{ emptyP }}">Select documents below and Signal Notes will read only those.</p>
+        <button onClick="{{ openCompose }}" style="{{ primaryBtn }}">{{ sparkIcon }}New briefing</button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(304px,1fr));gap:clamp(14px,1.8vw,22px);margin-bottom:42px">
+        <sc-for list="{{ skeletons }}" as="k" hint-placeholder-count="4">
+          <div style="{{ briefSkel }}">
+            <div style="{{ skelSweep }}"></div>
+            <div style="{{ skelMargin }}"></div>
+            <div style="{{ skelBar1 }}"></div>
+            <div style="{{ skelBar2 }}"></div>
+            <div style="{{ skelBar3 }}"></div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+      <div style="{{ errBox }}">
+        <div style="{{ errRule }}"></div>
+        <div>
+          <div style="{{ errTitle }}">We couldn't load your briefings.</div>
+          <p style="{{ errBody }}">The connection dropped. Nothing has been lost.</p>
+          <button onClick="{{ retry }}" style="{{ errBtn }}">{{ retryIcon }}Try again</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- DOCUMENTS -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <h2 style="{{ h2Style }}">Documents</h2>
+      <span style="{{ microLabel }}">{{ docSub }}</span>
+      <span style="flex:1"></span>
+      <span style="{{ microFaint }}">DRAG FILES ANYWHERE HERE</span>
+    </div>
+
+    <sc-if value="{{ isPopulated }}" hint-placeholder-val="{{ true }}">
+      <div onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onDrop }}" style="{{ dropZone }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(134px,1fr));gap:clamp(12px,1.6vw,20px)">
+          <sc-for list="{{ docTiles }}" as="d" hint-placeholder-count="5">
+            <div draggable="{{ true }}" onDragStart="{{ d.dragStart }}" onMouseEnter="{{ d.on }}" onMouseLeave="{{ d.off }}" onClick="{{ d.toggle }}" style="{{ d.tile }}">
+              <div style="position:relative;display:flex;justify-content:center">
+                <span style="{{ d.icon }}"><span style="{{ d.fold }}"></span><span style="{{ d.rule1 }}"></span><span style="{{ d.rule2 }}"></span><span style="{{ d.label }}">{{ d.ext }}</span></span>
+                <span style="{{ d.badge }}">{{ d.check }}</span>
+              </div>
+              <div style="{{ d.nameStyle }}">{{ d.file }}</div>
+              <div style="{{ d.metaStyle }}">{{ d.meta }}</div>
+              <button onClick="{{ d.open }}" style="{{ d.openBtn }}">Open</button>
+            </div>
+          </sc-for>
+          <button onClick="{{ openPaste }}" style="{{ addTile }}">
+            <span style="{{ addCircle }}">{{ plusIcon }}</span>
+            <span style="font-size:12px;color:inherit;opacity:.75">Add document</span>
+          </button>
+        </div>
+        <sc-if value="{{ dragging }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ dropOverlay }}">{{ uploadIcon }}<span style="font-size:13.5px;font-weight:500;margin-top:8px">Drop to add to Northwind Advisory</span><span style="{{ microFaint }};margin-top:4px">PDF · DOCX · TXT · MD · RTF</span></div>
+        </sc-if>
+      </div>
+      <sc-if value="{{ dropped }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ toastStyle }}">{{ checkIcon }}<span style="font-size:12.5px">{{ droppedName }} added</span></div>
+      </sc-if>
+    </sc-if>
+
+    <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+      <div onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onDrop }}" style="{{ emptyDrop }}">
+        {{ uploadIcon }}
+        <div style="font-family:Literata,Georgia,serif;font-size:19px;margin-top:12px">Drop your first document here</div>
+        <p style="{{ emptyP }};text-align:center;max-width:44ch">Or paste raw text. Briefings can only read what lives here.</p>
+        <button onClick="{{ openPaste }}" style="{{ primaryBtn }}">{{ plusIcon }}Add document</button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(134px,1fr));gap:clamp(12px,1.6vw,20px)">
+        <sc-for list="{{ skeletons }}" as="k" hint-placeholder-count="5">
+          <div style="display:flex;flex-direction:column;align-items:center;padding:14px 8px;position:relative;overflow:hidden">
+            <div style="{{ skelSweep }}"></div>
+            <div style="{{ skelIcon }}"></div>
+            <div style="{{ skelName }}"></div>
+            <div style="{{ skelMeta }}"></div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+      <div style="{{ errBox }}">
+        <div style="{{ errRule }}"></div>
+        <div>
+          <div style="{{ errTitle }}">We couldn't load your documents.</div>
+          <p style="{{ errBody }}">The request timed out. Nothing has been lost.</p>
+          <button onClick="{{ retry }}" style="{{ errBtn }}">{{ retryIcon }}Try again</button>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- SELECTION BAR -->
+  <div style="{{ selBar }}">
+    <span style="display:flex;align-items:center">
+      <sc-for list="{{ selIcons }}" as="s" hint-placeholder-count="3">
+        <span style="{{ s.icon }}"><span style="{{ s.fold }}"></span><span style="{{ s.label }}">{{ s.ext }}</span></span>
+      </sc-for>
+    </span>
+    <span style="font-size:12.5px;white-space:nowrap">{{ countLabel }}</span>
+    <span style="{{ vRule }}"></span>
+    <button onClick="{{ startGen }}" style="{{ primaryBtn }}">{{ sparkIcon }}Generate briefing</button>
+    <button onClick="{{ openSelected }}" style="{{ ghostBtnSm }}">{{ openIcon }}Open</button>
+    <button onClick="{{ renameSelected }}" style="{{ ghostBtnSm }}">{{ editIcon }}Rename</button>
+    <button onClick="{{ askDelete }}" style="{{ dangerBtnSm }}">{{ trashIcon }}Delete</button>
+    <button onClick="{{ clearSel }}" style="{{ linkBtn }}">Clear</button>
+  </div>
+
+  <!-- SHEETS -->
+  <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="{{ scrim }}">
+      <div style="{{ sheetStyle }}">
+
+        <!-- DOCUMENT -->
+        <sc-if value="{{ isDocSheet }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:24px clamp(20px,3vw,32px) 28px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap">
+              <div style="display:flex;gap:15px;align-items:flex-start">
+                <span style="{{ docIcon }}"><span style="{{ docFold }}"></span><span style="{{ docRule1 }}"></span><span style="{{ docRule2 }}"></span><span style="{{ docLabel }}">{{ docExt }}</span></span>
+                <div>
+                  <div style="font-size:15px;font-weight:500">{{ docFile }}</div>
+                  <sc-if value="{{ editing }}" hint-placeholder-val="{{ false }}">
+                    <input value="{{ docTitle }}" onChange="{{ onDocTitle }}" style="{{ renameInput }}">
+                  </sc-if>
+                  <sc-if value="{{ notEditing }}" hint-placeholder-val="{{ true }}">
+                    <h1 style="{{ sheetTitle }}">{{ docTitle }}</h1>
+                  </sc-if>
+                  <div style="{{ microLabel }};margin-top:9px">{{ docMeta }}</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <sc-if value="{{ docSaved }}" hint-placeholder-val="{{ false }}"><span style="{{ microAccent }}">SAVED</span></sc-if>
+                <button onClick="{{ toggleEdit }}" style="{{ editStyle }}">{{ editIcon }}{{ editLabel }}</button>
+                <button onClick="{{ startGen }}" style="{{ primaryBtnSm }}">{{ sparkIcon }}Use in briefing</button>
+                <button onClick="{{ closeSheet }}" style="{{ closeBtn }}">{{ closeIcon }}</button>
+              </div>
+            </div>
+            <div style="display:flex;gap:clamp(20px,3vw,32px);margin-top:22px;align-items:flex-start;flex-wrap:wrap">
+              <div style="{{ docBodyStyle }}">
+                <p style="margin:0 0 18px"><b>Dana Whitfield (VP Ops, Acme):</b> We're running four regional carriers off three different spreadsheets, and nobody can tell me landed cost per lane without a week of work. I don't need a prettier dashboard. I need one number I can defend in front of the CFO.</p>
+                <p style="margin:0 0 18px"><b>Mara Ellison:</b> When was the last time someone asked you for that number and you couldn't produce it?</p>
+                <p style="margin:0 0 18px"><b>Dana:</b> Two weeks ago. Board prep. We quoted a lane cost that was eleven percent off because the fuel surcharge table hadn't been updated since March. That's the part that keeps me up — not the eleven percent, the fact that I didn't know it was wrong.</p>
+                <p style="margin:0"><b>Dana:</b> The blocker isn't budget. Our COO thinks a rip-and-replace takes a year and he has a distribution centre opening in March he won't risk.</p>
+              </div>
+              <div style="width:230px;flex:none">
+                <div style="{{ microLabel }}">USED IN 2 BRIEFINGS</div>
+                <button onClick="{{ openBriefing }}" style="{{ usedRow }}">
+                  <span style="font-family:Literata,serif;font-size:14.5px;line-height:1.35;display:block">Acme Logistics: pre-strategy briefing</span>
+                  <span style="{{ microFaint }};display:block;margin-top:5px">1 SEP · 3 SOURCES · USEFUL</span>
+                </button>
+                <div style="{{ usedRowStatic }}">
+                  <span style="font-family:Literata,serif;font-size:14.5px;line-height:1.35;display:block">Q3 carrier-consolidation themes</span>
+                  <span style="{{ microFaint }};display:block;margin-top:5px">24 AUG · 4 SOURCES · NOT RATED</span>
+                </div>
+                <div style="{{ microLabel }};margin-top:22px">FILE HISTORY</div>
+                <sc-for list="{{ docAudit }}" as="a" hint-placeholder-count="4">
+                  <div style="{{ historyRow }}"><span style="opacity:.65;flex:none">{{ a.t }}</span><span>{{ a.what }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- DELETE -->
+        <sc-if value="{{ isDeleteSheet }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:26px 30px 28px">
+            <h1 style="{{ sheetTitle }};margin-top:0">Delete {{ delCount }}?</h1>
+            <p style="{{ emptyP }}">{{ delNames }}</p>
+            <p style="{{ emptyP }}">Briefings already grounded in these keep their citations, but the source text will no longer open.</p>
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <button onClick="{{ confirmDelete }}" style="{{ delBtn }}">{{ delLabel }}</button>
+              <button onClick="{{ closeSheet }}" style="{{ ghostBtnSm }}">Cancel</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ADD DOCUMENT -->
+        <sc-if value="{{ isPasteSheet }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:24px clamp(20px,3vw,30px) 28px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <h1 style="{{ sheetTitle }};margin-top:0">Add a document</h1>
+              <button onClick="{{ closeSheet }}" style="{{ closeBtn }}">{{ closeIcon }}</button>
+            </div>
+            <div onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onDrop }}" style="{{ sheetDrop }}">
+              <div style="display:flex;gap:8px;justify-content:center">
+                <sc-for list="{{ fileTypes }}" as="f" hint-placeholder-count="6">
+                  <span style="{{ f.icon }}"><span style="{{ f.fold }}"></span><span style="{{ f.label }}">{{ f.ext }}</span></span>
+                </sc-for>
+              </div>
+              <div style="text-align:center">
+                <div style="font-size:13.5px;font-weight:500">Drop a file here, or browse</div>
+                <div style="{{ microFaint }};margin-top:6px">PDF · DOCX · TXT · MD · RTF · WEB URL · UP TO 20 MB</div>
+              </div>
+            </div>
+            <div style="{{ microLabel }};margin-top:20px">TITLE</div>
+            <div style="{{ titleFieldStyle }}">{{ titleFieldText }}</div>
+            <sc-if value="{{ titleMissing }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;gap:10px;margin-top:9px;animation:sn-line .2s ease both">
+                <div style="{{ errRule }}"></div>
+                <div style="{{ errTitle }};font-weight:400;font-size:12.5px">A title is how you'll find this later. Even "Acme call, Aug 12" is enough.</div>
+              </div>
+            </sc-if>
+            <div style="{{ microLabel }};margin:18px 0 9px">KIND</div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap">
+              <sc-for list="{{ kinds }}" as="k" hint-placeholder-count="4">
+                <button onClick="{{ k.pick }}" style="{{ k.style }}">{{ k.label }}</button>
+              </sc-for>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin:18px 0 8px">
+              <span style="{{ microLabel }}">TEXT</span>
+              <span style="{{ microFaint }}">4,182 CHARACTERS</span>
+            </div>
+            <div style="{{ pasteBox }}">
+              <p style="margin:0 0 14px">Mara: Before the co-packer question — how does the ops review actually run today?</p>
+              <p style="margin:0">Dana Whitfield (VP Ops, Ridgeline): Monday morning. Four plants send numbers Friday afternoon, my analyst rebuilds the deck over the weekend, and by the time we're in the room the demand data is two weeks old.</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;margin-top:18px;flex-wrap:wrap">
+              <button onClick="{{ savePaste }}" style="{{ saveStyle }}">{{ saveLabel }}</button>
+              <button onClick="{{ toggleTitle }}" style="{{ linkBtn }}">{{ titleToggleLabel }}</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- COMPOSER -->
+        <sc-if value="{{ isComposeSheet }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:24px clamp(20px,3vw,30px) 28px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <h1 style="{{ sheetTitle }};margin-top:0">New briefing</h1>
+                <p style="{{ emptyP }};margin-bottom:0">Pick the documents it may read. It will read nothing else.</p>
+              </div>
+              <button onClick="{{ closeSheet }}" style="{{ closeBtn }}">{{ closeIcon }}</button>
+            </div>
+            <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:22px 0 4px;max-width:52ch">
+                <div style="font-family:Literata,Georgia,serif;font-size:18px">Nothing to ground a briefing in yet.</div>
+                <p style="{{ emptyP }}">Add a document first — a call transcript is the fastest start.</p>
+                <button onClick="{{ openPaste }}" style="{{ primaryBtn }}">{{ plusIcon }}Add a document</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isPopulated }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-top:18px">
+                <div style="{{ microLabel }}">TITLE — OPTIONAL</div>
+                <div style="{{ titleFieldPlain }}">Acme Logistics: pre-strategy briefing</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(134px,1fr));gap:14px;margin-top:20px">
+                  <sc-for list="{{ pickTiles }}" as="p" hint-placeholder-count="5">
+                    <div onClick="{{ p.toggle }}" style="{{ p.tile }}">
+                      <div style="position:relative;display:flex;justify-content:center">
+                        <span style="{{ p.icon }}"><span style="{{ p.fold }}"></span><span style="{{ p.rule1 }}"></span><span style="{{ p.rule2 }}"></span><span style="{{ p.label }}">{{ p.ext }}</span></span>
+                        <span style="{{ p.badge }}">{{ p.check }}</span>
+                      </div>
+                      <div style="{{ p.nameStyle }}">{{ p.file }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;margin-top:20px;flex-wrap:wrap">
+                  <button onClick="{{ startGen }}" style="{{ genBtnStyle }}">{{ sparkIcon }}Generate briefing</button>
+                  <span style="{{ microLabel }}">{{ countLabel }}</span>
+                </div>
+                <sc-if value="{{ noneSelected }}" hint-placeholder-val="{{ false }}">
+                  <p style="{{ emptyP }};margin-bottom:0">Select at least one document — a briefing with no sources would just be a guess.</p>
+                </sc-if>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <!-- GENERATION -->
+        <sc-if value="{{ isGenSheet }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="{{ genBar }}"></div>
+            <div style="padding:22px clamp(20px,3vw,30px) 26px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+                <div>
+                  <h1 style="{{ sheetTitle }};margin-top:0">Acme Logistics: pre-strategy briefing</h1>
+                  <div style="{{ microLabel }};margin-top:9px">{{ genCount }} · {{ genElapsed }}</div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <span style="{{ genChip }}">{{ genChipLabel }}</span>
+                  <button onClick="{{ closeSheet }}" style="{{ closeBtn }}">{{ closeIcon }}</button>
+                </div>
+              </div>
+              <div style="{{ genChipRow }}">
+                <sc-for list="{{ pickedChips }}" as="n" hint-placeholder-count="3">
+                  <span style="{{ n.chip }}"><span style="{{ n.icon }}"><span style="{{ n.fold }}"></span><span style="{{ n.label }}">{{ n.ext }}</span></span>{{ n.file }}</span>
+                </sc-for>
+              </div>
+              <div style="min-height:280px;padding-top:16px;display:flex;flex-direction:column;gap:10px">
+                <sc-for list="{{ lines }}" as="l" hint-placeholder-count="5">
+                  <div style="{{ l.wrap }}">
+                    <span style="{{ l.timeStyle }}">{{ l.t }}</span>
+                    <span style="{{ l.tagStyle }}">{{ l.tag }}</span>
+                    <span style="{{ l.style }}">{{ l.text }}</span>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ streaming }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ streamBox }}">
+                    <div style="{{ microLabel }};margin-bottom:8px">DRAFTING · LIVE OUTPUT</div>
+                    <div style="{{ streamText }}">{{ streamed }}<span style="{{ caret }}">▍</span></div>
+                  </div>
+                </sc-if>
+              </div>
+              <sc-if value="{{ genFailed }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;gap:14px;padding:16px 0 0;animation:sn-line .22s ease both">
+                  <div style="{{ errRule }}"></div>
+                  <div>
+                    <div style="{{ errTitle }}">This briefing didn't finish.</div>
+                    <p style="{{ errBody }}">Nothing was saved and your documents are untouched.</p>
+                    <div style="display:flex;gap:10px;margin-top:12px">
+                      <button onClick="{{ retryGen }}" style="{{ primaryBtnSm }}">{{ retryIcon }}Try again</button>
+                      <button onClick="{{ openCompose }}" style="{{ ghostBtnSm }}">Back to composer</button>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+              <div style="{{ genFoot }}">
+                <span style="{{ microFaint }}">You can close this — the run keeps going.</span>
+                <sc-if value="{{ genDone }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ openBriefing }}" style="{{ primaryBtnSm }}">Read the briefing</button>
+                </sc-if>
+                <sc-if value="{{ genRunning }}" hint-placeholder-val="{{ true }}">
+                  <button onClick="{{ failGen }}" style="{{ linkBtn }}">Simulate failure</button>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- BRIEFING -->
+        <sc-if value="{{ isBriefSheet }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ briefSheetCard }}">
+            <div style="{{ briefSheetMargin }}"></div>
+            <div style="padding:26px clamp(22px,3vw,36px) 32px clamp(58px,6vw,76px)">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap">
+                <div>
+                  <div style="{{ microLabel }}">BRIEFING 041 · COMPLETE</div>
+                  <h1 style="{{ briefTitleStyle }}">Acme Logistics: pre-strategy briefing</h1>
+                  <div style="{{ microLabel }};margin-top:11px">1 SEP 2026 09:41 · MARA ELLISON · 3 SOURCES · 6 CITATIONS</div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <button onClick="{{ toggleAudit }}" style="{{ auditBtn }}">{{ clockIcon }}{{ auditLabel }}</button>
+                  <button onClick="{{ closeSheet }}" style="{{ closeBtn }}">{{ closeIcon }}</button>
+                </div>
+              </div>
+
+              <div style="{{ groundRow }}">
+                <span style="{{ microLabel }};margin-right:3px">GROUNDED IN</span>
+                <sc-for list="{{ sourceChips }}" as="s" hint-placeholder-count="3">
+                  <button onClick="{{ s.open }}" style="{{ s.style }}"><span style="{{ s.icon }}"><span style="{{ s.fold }}"></span><span style="{{ s.label }}">{{ s.ext }}</span></span>{{ s.file }}</button>
+                </sc-for>
+              </div>
+
+              <div style="display:flex;gap:clamp(20px,3vw,36px);padding:24px 0 0;align-items:flex-start;flex-wrap:wrap">
+                <div style="flex:1;min-width:300px;max-width:66ch">
+                  <p style="{{ briefLede }}">Acme is not shopping for visibility software. They are trying to make one defensible number — landed cost per lane — survive a CFO conversation.</p>
+                  <sc-for list="{{ sections }}" as="s" hint-placeholder-count="6">
+                    <div onMouseEnter="{{ s.hoverPara }}" onMouseLeave="{{ s.leavePara }}" style="position:relative;margin-bottom:24px">
+                      <h2 style="{{ s.headStyle }}">{{ s.head }}</h2>
+                      <p style="{{ s.pStyle }}">{{ s.p1 }}<span onMouseEnter="{{ s.hoverCite }}" onMouseLeave="{{ s.leaveCite }}" style="{{ s.citeStyle }}">{{ s.citeLabel }}</span>{{ s.p2 }}</p>
+                      <p style="{{ s.pStyle }}">{{ s.p3 }}</p>
+                        <button onClick="{{ s.addNote }}" style="{{ s.noteBtn }}">{{ noteIcon }}</button>
+                      <sc-for list="{{ s.noteItems }}" as="nt" hint-placeholder-count="1">
+                        <div style="{{ nt.card }}">
+                          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+                            <div style="{{ nt.meta }}">{{ nt.who }}</div>
+                            <button onClick="{{ nt.remove }}" style="{{ nt.del }}">Delete</button>
+                          </div>
+                          <div style="{{ nt.body }}">{{ nt.text }}</div>
+                        </div>
+                      </sc-for>
+                      <sc-if value="{{ s.noteOpen }}" hint-placeholder-val="{{ false }}">
+                        <div style="margin-top:11px;animation:sn-line .2s ease both">
+                          <textarea value="{{ s.draft }}" onChange="{{ s.onDraft }}" placeholder="Comment on this section…" style="{{ s.textarea }}"></textarea>
+                          <div style="display:flex;gap:8px;margin-top:8px">
+                            <button onClick="{{ s.saveNote }}" style="{{ s.saveNoteStyle }}">{{ s.saveNoteLabel }}</button>
+                            <button onClick="{{ s.cancelNote }}" style="{{ ghostBtnSm }}">Cancel</button>
+                          </div>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="width:212px;flex:none">
+                  <div style="{{ microLabel }}">YOUR JUDGMENT</div>
+                  <div style="display:flex;gap:8px;margin-top:11px">
+                    <button onClick="{{ rateUp }}" style="{{ upStyle }}">{{ thumbUpIcon }}{{ upLabel }}</button>
+                    <button onClick="{{ rateDown }}" style="{{ downStyle }}">{{ thumbDownIcon }}</button>
+                  </div>
+                  <sc-if value="{{ rated }}" hint-placeholder-val="{{ false }}">
+                    <div style="{{ ratedStyle }}">{{ ratedLine }} · <span style="text-decoration:underline;cursor:pointer">EDIT</span></div>
+                  </sc-if>
+                  <div style="{{ microLabel }};margin-top:22px">NOTES</div>
+                  <div style="margin-top:9px;display:flex;flex-direction:column;gap:9px">
+                    <sc-for list="{{ noteList }}" as="nt" hint-placeholder-count="2">
+                      <div style="{{ noteListItem }}">
+                        <div style="{{ microFaint }}">{{ nt.where }}</div>
+                        <div style="font-family:Literata,serif;font-size:13px;line-height:1.5;margin-top:4px">{{ nt.text }}</div>
+                      </div>
+                    </sc-for>
+                    <sc-if value="{{ noNotes }}" hint-placeholder-val="{{ true }}">
+                      <div style="{{ emptyNote }}">Hover a section and use the margin mark to comment.</div>
+                    </sc-if>
+                  </div>
+                  <div style="{{ microLabel }};margin-top:22px">GENERATION LOG</div>
+                  <div style="margin-top:8px;display:flex;flex-direction:column;gap:5px">
+                    <sc-for list="{{ fullLog }}" as="l" hint-placeholder-count="8">
+                      <div style="{{ logLine }}"><span style="opacity:.6">{{ l.t }}</span> {{ l.text }}</div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+
+              <sc-if value="{{ auditOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="{{ auditWrap }}">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+                    <span style="{{ microLabel }}">AUDIT TRAIL</span>
+                    <span style="{{ microFaint }}">APPEND-ONLY · {{ auditCount }} EVENTS · ORG-SCOPED</span>
+                  </div>
+                  <div style="{{ auditHead }}"><span>TIME</span><span>EVENT</span><span>DETAIL</span><span>ACTOR</span></div>
+                  <sc-for list="{{ audit }}" as="a" hint-placeholder-count="8">
+                    <div style="{{ a.row }}">
+                      <span style="{{ a.time }}">{{ a.t }}</span>
+                      <span style="{{ a.kind }}">{{ a.event }}</span>
+                      <span style="{{ a.detailStyle }}">{{ a.detail }}</span>
+                      <span style="{{ a.actorStyle }}">{{ a.actor }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- NOT FOUND -->
+        <sc-if value="{{ isNotFoundSheet }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:30px 32px 32px">
+            <div style="font-family:Literata,Georgia,serif;font-size:23px">This page doesn't exist.</div>
+            <p style="{{ emptyP }}">It may have been deleted, or the link may be wrong.</p>
+            <button onClick="{{ closeSheet }}" style="{{ primaryBtn }}">Back to briefings</button>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- CITATION TOOLTIP -->
+  <sc-if value="{{ tipOpen }}" hint-placeholder-val="{{ false }}">
+    <div onMouseEnter="{{ holdTip }}" onMouseLeave="{{ releaseTip }}" style="{{ tipStyle }}">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="{{ tipIcon }}"><span style="{{ tipFold }}"></span><span style="{{ tipLabel }}">{{ tipExt }}</span></span>
+        <span style="{{ microFaint }}">{{ tipMeta }}</span>
+      </div>
+      <div style="{{ tipQuote }}">{{ tipText }}</div>
+      <div style="{{ microFaint }};margin-top:8px">{{ tipFile }}</div>
+    </div>
+  </sc-if>
+
+  <!-- SIGN IN -->
+  <sc-if value="{{ signedOut }}" hint-placeholder-val="{{ false }}">
+    <div style="{{ signinWrap }}">
+      <div style="width:min(380px,100%)">
+        <div style="display:flex;align-items:center;gap:11px">{{ markIcon }}<span style="font-family:Literata,Georgia,serif;font-size:24px;letter-spacing:-.01em">Signal Notes</span></div>
+        <p style="{{ signinLede }}">Briefings grounded in your own documents.</p>
+        <sc-if value="{{ expired }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ expiredBox }}">
+            <div style="font-size:13px">You were signed out.</div>
+            <div style="{{ microFaint }};margin-top:3px">Sign in to continue where you left off.</div>
+          </div>
+        </sc-if>
+        <div style="{{ microLabel }}">EMAIL</div>
+        <div style="{{ fieldStyle }}">mara@northwindadvisory.com</div>
+        <div style="{{ microLabel }};margin-top:18px">PASSWORD</div>
+        <div style="{{ pwFieldStyle }}">••••••••••</div>
+        <sc-if value="{{ signinError }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:10px;margin-top:10px;animation:sn-line .2s ease both">
+            <div style="{{ errRule }}"></div>
+            <div><div style="{{ errTitle }};font-size:12.5px">That email and password don't match.</div><div style="{{ microFaint }}">Check the password and try again.</div></div>
+          </div>
+        </sc-if>
+        <button onClick="{{ signIn }}" style="{{ signInStyle }}">{{ signInLabel }}</button>
+        <div style="display:flex;justify-content:space-between;margin-top:14px">
+          <button onClick="{{ showExpired }}" style="{{ tinyLink }}">SESSION EXPIRED</button>
+          <button onClick="{{ showError }}" style="{{ tinyLink }}">ERROR STATE</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:940}}">
+const R = React;
+const svg=(s,c,ch)=>R.createElement("svg",{width:s,height:s,viewBox:"0 0 24 24",fill:"none",stroke:c||"currentColor",strokeWidth:1.7,strokeLinecap:"round",strokeLinejoin:"round",style:{flex:"none",display:"block"}},ch);
+const p=(d,k)=>R.createElement("path",{d:d,key:k});
+const ICONS={
+  search:(s,c)=>svg(s||13,c,[R.createElement("circle",{cx:11,cy:11,r:6,key:"a"}),p("M15.5 15.5L20 20","b")]),
+  plus:(s,c)=>svg(s||14,c,[p("M12 5v14","a"),p("M5 12h14","b")]),
+  spark:(s,c)=>svg(s||14,c,[p("M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z","a")]),
+  chev:(s,c)=>svg(s||12,c,[p("M6 9l6 6 6-6","a")]),
+  close:(s,c)=>svg(s||14,c,[p("M6 6l12 12","a"),p("M18 6L6 18","b")]),
+  check:(s,c)=>svg(s||13,c,[p("M4 12.5l5 5 11-11","a")]),
+  trash:(s,c)=>svg(s||13,c,[p("M4 7h16","a"),p("M9 7V5h6v2","b"),p("M6 7l1 13h10l1-13","c")]),
+  open:(s,c)=>svg(s||13,c,[p("M14 4h6v6","a"),p("M20 4l-9 9","b"),p("M18 14v6H4V6h6","c")]),
+  clock:(s,c)=>svg(s||13,c,[R.createElement("circle",{cx:12,cy:12,r:8,key:"a"}),p("M12 8v4.5l3 1.6","b")]),
+  note:(s,c)=>svg(s||13,c,[p("M5 5h14v9l-4 5H5z","a"),p("M19 14h-4v5","b")]),
+  retry:(s,c)=>svg(s||13,c,[p("M20 11a8 8 0 10-2.3 5.7","a"),p("M20 5v6h-6","b")]),
+  edit:(s,c)=>svg(s||13,c,[p("M15 5l4 4","a"),p("M4 20l1-4L17 4l3 3L8 19z","b")]),
+  up:(s,c)=>svg(s||14,c,[p("M7 11v9H4v-9z","a"),p("M7 11l4.5-8c1.6 0 2.4 1 2.1 2.6L13 9h5.3c1.3 0 2.2 1.2 1.9 2.4l-1.6 6.4c-.2 1-1.1 1.7-2.1 1.7H7","b")]),
+  down:(s,c)=>svg(s||14,c,[p("M7 13V4H4v9z","a"),p("M7 13l4.5 8c1.6 0 2.4-1 2.1-2.6L13 15h5.3c1.3 0 2.2-1.2 1.9-2.4l-1.6-6.4A2.2 2.2 0 0016.5 4.5H7","b")]),
+  upload:(s,c)=>svg(s||26,c,[p("M12 16V5","a"),p("M7.5 9.5L12 5l4.5 4.5","b"),p("M4 16v3h16v-3","c")]),
+  sun:(s,c)=>svg(s||13,c,[R.createElement("circle",{cx:12,cy:12,r:4,key:"a"}),p("M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4","b")]),
+  moon:(s,c)=>svg(s||13,c,[p("M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z","a")]),
+  mark:(c1,c2)=>R.createElement("svg",{width:22,height:26,viewBox:"0 0 22 26",fill:"none",style:{flex:"none",display:"block"}},[
+    R.createElement("rect",{x:.9,y:.9,width:20.2,height:24.2,rx:4,stroke:c1,strokeWidth:1.4,key:"r"}),
+    R.createElement("path",{d:"M5.5 7.5h11",stroke:"#E8B32A",strokeWidth:1.6,strokeLinecap:"round",key:"a"}),
+    R.createElement("path",{d:"M5.5 12.5h11",stroke:c2,strokeWidth:1.4,strokeLinecap:"round",key:"b"}),
+    R.createElement("path",{d:"M5.5 17.5h7",stroke:c2,strokeWidth:1.4,strokeLinecap:"round",key:"c"})])
+};
+const TYPE_COLOR={PDF:"#E5836F",DOCX:"#7FA6D9",TXT:"#A9A499",MD:"#8FBF87",RTF:"#B08CD9",WEB:"#E8B32A"};
+
+const DOCS=[
+  {id:"d1",ext:"PDF",file:"acme-discovery-0812.pdf",title:"Acme Logistics — discovery call",kind:"Call transcript",size:"312 KB",meta:"12 AUG · M. ELLISON"},
+  {id:"d2",ext:"DOCX",file:"ridgeline-vpops.docx",title:"Ridgeline Foods — VP Ops interview",kind:"Interview notes",size:"88 KB",meta:"26 AUG · D. OSEI"},
+  {id:"d3",ext:"WEB",file:"cobaltfreight.com/pricing",title:"Cobalt Freight pricing page",kind:"Web copy",size:"14 KB",meta:"28 AUG · P. RAMAN"},
+  {id:"d4",ext:"TXT",file:"meridian-renewal.txt",title:"Meridian Health — renewal risk",kind:"Interview notes",size:"22 KB",meta:"29 AUG · M. ELLISON"},
+  {id:"d5",ext:"MD",file:"harbor-vane.md",title:"Harbor & Vane — positioning notes",kind:"Other",size:"9 KB",meta:"30 AUG · T. WEILL"}
+];
+const BRIEFS=[
+  {id:"b1",title:"Ridgeline Foods: expansion readiness",state:"gen",status:"GENERATING",date:"1 SEP 09:58",rating:"",srcs:["d2","d4"],sub:"Extracting themes from ridgeline-vpops.docx · step 3 of 8"},
+  {id:"b2",title:"Acme Logistics: pre-strategy briefing",state:"done",status:"COMPLETE",date:"1 SEP 09:41",rating:"RATED USEFUL",srcs:["d1","d3","d5"],sub:"They are not shopping for visibility software — they want one defensible number."},
+  {id:"b3",title:"Cobalt Freight: positioning gaps",state:"failed",status:"FAILED",date:"1 SEP 08:26",rating:"",srcs:["d3","d5"],sub:"Didn't finish — the model didn't respond in time. Try again."},
+  {id:"b4",title:"Meridian Health: renewal defense",state:"done",status:"COMPLETE",date:"30 AUG 16:04",rating:"RATED NOT USEFUL",srcs:["d4","d1"],sub:"The sponsor who signed the original case is gone; the new one wants a rebuild."}
+];
+const RUN=[
+  {t:"09:41:02",tag:"PLAN",text:"Three documents bound. I'll read each in full, pull recurring themes, then draft against only what they say."},
+  {t:"09:41:04",tag:"TOOL",text:"read_document(acme-discovery-0812.pdf) → 62 passages"},
+  {t:"09:41:09",tag:"TOOL",text:"read_document(cobaltfreight.com/pricing) → 11 passages"},
+  {t:"09:41:14",tag:"TOOL",text:"read_document(harbor-vane.md) → 9 passages"},
+  {t:"09:41:17",tag:"THINK",text:"The surcharge error and the March opening keep recurring together — urgency and risk aversion in the same building. That's the spine."},
+  {t:"09:41:19",tag:"TOOL",text:"cross_reference(passages=27, themes=4)"},
+  {t:"09:41:26",tag:"WRITE",text:"Drafting six sections."},
+  {t:"09:41:38",tag:"TOOL",text:"verify_claims(claims=6) → 6 traced, 0 unsupported"},
+  {t:"09:41:44",tag:"DONE",text:"Complete — 6 sections, 6 citations, 1,180 words."}
+];
+const STREAM="Acme is not shopping for visibility software. They are trying to make one defensible number — landed cost per lane — survive a CFO conversation. Four carriers, three spreadsheets, a surcharge table stale since March…";
+const LOG=RUN.map(r=>[r.t,r.text]);
+const SECTIONS=[
+  {head:"Where they are",cite:"d1",citeLabel:"1",
+   p1:"Four regional carriers run across three spreadsheets and the fuel-surcharge table went stale in March. In board prep two weeks before our call, ",
+   p2:" — and what Dana returns to is not the eleven percent but the fact that nobody caught it.",
+   p3:"This is a credibility problem wearing a data problem's clothes. Acme has the numbers. They don't trust them, and they can't show their work."},
+  {head:"What is driving urgency",cite:"d1",citeLabel:"2",
+   p1:"A distribution centre opens in March, and ",
+   p2:", so urgency and risk aversion pull against each other inside the same building.",
+   p3:"They already spent forty thousand dollars on a contractor rebuild that will be stale again by Q1. That budget line is the one to redirect."},
+  {head:"How they will price us",cite:"d3",citeLabel:"3",
+   p1:"Their mental model is already set by the market: ",
+   p2:". Anything quoted per seat reads as expensive whatever the total.",
+   p3:"Match the frame. Quote per lane, name the lanes, and let the comparison be arithmetic rather than argument."},
+  {head:"The competitor in the room",cite:"d5",citeLabel:"4",
+   p1:"Two mid-market deals went the same way this quarter. In our own notes, ",
+   p2:", and Acme has heard their four-week implementation claim.",
+   p3:"Don't argue speed. Argue month nine, when Acme adds its second entity and a four-week install becomes a rebuild."},
+  {head:"Recommended posture",cite:"d1",citeLabel:"5",
+   p1:"Lead with the surcharge model as a bounded first phase, live before March, no change to carrier operations. ",
+   p2:" is what makes the COO's timeline objection irrelevant rather than contested.",
+   p3:"Bring one defensible lane number, built from their own data, and let it do the arguing."},
+  {head:"Open questions",cite:"d3",citeLabel:"6",
+   p1:"Three things none of the sources answer. Who signs — Dana or the COO? When does the contractor's engagement end? And ",
+   p2:" — has anyone priced the cost of the eleven percent?",
+   p3:"Get the third answered on the call. It turns a felt problem into a budgeted one."}
+];
+const CITES={
+  d1:{tag:"PASSAGE 14 OF 62",quote:"Dana: Two weeks ago. Board prep. We quoted a lane cost that was eleven percent off because the fuel surcharge table hadn't been updated since March."},
+  d3:{tag:"PASSAGE 3 OF 11",quote:"Freight intelligence, priced per lane. No seats, no surprises."},
+  d5:{tag:"PASSAGE 2 OF 9",quote:"They win on implementation speed, lose on anything multi-entity."}
+};
+const AUDIT=[
+  {t:"09:41:02",event:"RUN STARTED",detail:"3 documents bound to this briefing",actor:"M. ELLISON"},
+  {t:"09:41:02",event:"SOURCE BOUND",detail:"acme-discovery-0812.pdf · 62 passages",actor:"SYSTEM"},
+  {t:"09:41:02",event:"SOURCE BOUND",detail:"cobaltfreight.com/pricing · 11 passages",actor:"SYSTEM"},
+  {t:"09:41:02",event:"SOURCE BOUND",detail:"harbor-vane.md · 9 passages",actor:"SYSTEM"},
+  {t:"09:41:19",event:"TOOL CALL",detail:"cross_reference(passages=27, themes=4)",actor:"SYSTEM"},
+  {t:"09:41:38",event:"CHECK",detail:"6 claims traced to source; 0 unsupported",actor:"SYSTEM"},
+  {t:"09:41:44",event:"COMPLETE",detail:"6 sections · 1,180 words · 42.1s",actor:"SYSTEM"},
+  {t:"10:02:11",event:"RATED",detail:"Marked useful",actor:"M. ELLISON"},
+  {t:"11:16:07",event:"VIEWED",detail:"Opened, read to end",actor:"D. OSEI"},
+  {t:"14:20:55",event:"EXPORTED",detail:"PDF, shared inside Northwind Advisory",actor:"D. OSEI"}
+];
+const KINDS=["Interview notes","Call transcript","Web copy","Other"];
+const TYPES=["PDF","DOCX","TXT","MD","RTF","WEB"];
+const STATES=[["populated","Populated"],["empty","Empty"],["loading","Loading"],["error","Error"],["notfound","Not found"],["signin","Sign in"]];
+
+class Component extends DCLogic {
+  state={
+    theme:"dark", view:"populated", sheet:null, accountOpen:false, quick:false, hover:null, hoverDoc:null,
+    signedOut:false, expired:false, signinError:false, signing:false,
+    sel:{d1:true,d3:true,d5:true}, kind:"Call transcript", titleMissing:false,
+    openDoc:"d1", editing:false, saving:false, docSaved:false, deleting:false,
+    n:0, genFailed:false, elapsed:0, chars:0,
+    tip:null, tipX:0, tipY:0, tipBelow:0, auditOpen:false,
+    rating:null, working:null, notes:{}, noteOpen:null, draft:"", noteSaving:false, hoverPara:null,
+    dragging:false, dropped:false, droppedName:"", query:"", titles:{}, delBrief:null
+  };
+  stop(){ if(this.timer){clearTimeout(this.timer);this.timer=null;} if(this.tick){clearInterval(this.tick);this.tick=null;} if(this.typer){clearInterval(this.typer);this.typer=null;} }
+  cells={};
+  flipTo(id){
+    const prev={};
+    Object.keys(this.cells).forEach(k=>{ const el=this.cells[k]; if(el) prev[k]=el.getBoundingClientRect(); });
+    this.setState({hover:id},()=>{
+      Object.keys(this.cells).forEach(k=>{
+        const el=this.cells[k]; if(!el||!prev[k]) return;
+        const r=el.getBoundingClientRect();
+        const dx=prev[k].left-r.left, dy=prev[k].top-r.top;
+        if(Math.abs(dx)<1&&Math.abs(dy)<1) return;
+        el.style.transition="none";
+        el.style.transform="translate("+dx+"px,"+dy+"px)";
+        requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ el.style.transition="transform .42s cubic-bezier(.32,.72,0,1)"; el.style.transform="translate(0px,0px)"; }); });
+      });
+    });
+  }
+  componentWillUnmount(){ this.stop(); }
+  step(){
+    const s=this.state;
+    if(s.genFailed||s.n>=RUN.length){ this.stop(); return; }
+    if(RUN[s.n] && RUN[s.n].tag==="WRITE" && !this.typer){
+      this.typer=setInterval(()=>this.setState(st=>{
+        if(st.chars>=STREAM.length){ clearInterval(this.typer); this.typer=null; return null; }
+        return { chars: Math.min(STREAM.length, st.chars+3) };
+      }),24);
+    }
+    const wait=520+Math.round(Math.random()*1400);
+    this.timer=setTimeout(()=>this.setState(st=>({n:st.n+1}),()=>this.step()),wait);
+  }
+  run(){
+    this.stop();
+    this.setState({n:1,genFailed:false,elapsed:0,chars:0});
+    this.tick=setInterval(()=>this.setState(st=>({elapsed:st.elapsed+0.1})),100);
+    this.step();
+  }
+  open(name){ return ()=>{ this.stop(); this.setState({sheet:name,accountOpen:false,quick:false,tip:null}); }; }
+
+  renderVals(){
+    const s=this.state, v=s.view, dark=s.theme==="dark";
+    const T = dark ? {
+      bg:"#0F0F0E", panel:"#17171400", head:"#141413", border:"#2C2B27", soft:"#26251F",
+      text:"#EFECE4", muted:"#8B877D", faint:"#6B675F", sheet:"#1A1A18",
+      card:"#1F1E1A", cardRule:"rgba(126,158,180,.22)", cardMargin:"#8A4A42", cardText:"#EFECE4", cardMuted:"#9A9184",
+      accent:"#FFCC48", onAccent:"#1A1707", danger:"#E5836F", hoverBg:"#211F1C", tip:"#111110"
+    } : {
+      bg:"#EAE6DC", panel:"#FFFFFF00", head:"#FBFAF6", border:"#D9D3C6", soft:"#E7E1D3",
+      text:"#1B1A17", muted:"#6E6759", faint:"#8C8578", sheet:"#FBFAF6",
+      card:"#FDFAF0", cardRule:"#D3E1EA", cardMargin:"#E39089", cardText:"#1B1A17", cardMuted:"#8C8578",
+      accent:"#E8B32A", onAccent:"#231C05", danger:"#B6543F", hoverBg:"#F1EDE1", tip:"#FDFAF0"
+    };
+    const mono="font-family:'IBM Plex Mono',monospace;";
+    const microLabel=mono+"font-size:9px;letter-spacing:.16em;color:"+T.muted;
+    const microFaint=mono+"font-size:9px;letter-spacing:.12em;color:"+T.faint;
+    const fileIcon=(ext,size,on)=>{
+      const w=size==="sm"?18:size==="md"?52:64,h=Math.round(w*1.3),c=TYPE_COLOR[ext]||T.muted,fs=size==="sm"?6:9.5;
+      return {
+        wrap:"width:"+w+"px;height:"+h+"px;flex:none;position:relative;display:block;border-radius:"+(size==="sm"?4:8)+"px;background:"+(dark?"#1A1A18":"#FFFFFF")+";border:1px solid "+(on?c:c+(dark?"55":"77"))+";box-shadow:"+(on?"0 0 0 3px "+T.accent+"33":"0 1px 2px rgba(0,0,0,"+(dark?".4":".12")+")")+";transition:transform .2s cubic-bezier(.2,.8,.3,1),box-shadow .2s,border-color .2s",
+        fold:"position:absolute;right:0;top:0;width:"+Math.round(w*.3)+"px;height:"+Math.round(w*.3)+"px;background:"+c+"2E;border-bottom-left-radius:6px;border-top-right-radius:"+(size==="sm"?3:7)+"px",
+        rule1:"position:absolute;left:"+Math.round(w*.18)+"px;right:"+Math.round(w*.18)+"px;top:"+Math.round(h*.42)+"px;height:1px;background:"+c+"44",
+        rule2:"position:absolute;left:"+Math.round(w*.18)+"px;right:"+Math.round(w*.34)+"px;top:"+Math.round(h*.55)+"px;height:1px;background:"+c+"33",
+        label:"position:absolute;left:0;right:0;bottom:"+(size==="sm"?2:7)+"px;text-align:center;"+mono+"font-size:"+fs+"px;letter-spacing:.06em;color:"+c
+      };
+    };
+    const primary=(h)=>"display:flex;align-items:center;gap:7px;height:"+h+"px;padding:0 16px;border-radius:100px;border:0;background:"+T.accent+";color:"+T.onAccent+";font:600 12.5px 'Space Grotesk',sans-serif;cursor:pointer;white-space:nowrap;transition:filter .16s";
+    const ghost=(h)=>"display:flex;align-items:center;gap:7px;height:"+h+"px;padding:0 14px;border-radius:100px;border:1px solid "+T.border+";background:transparent;color:"+T.text+";font:400 12.5px 'Space Grotesk',sans-serif;cursor:pointer;white-space:nowrap;transition:border-color .16s";
+    const sel=v==="populated"?DOCS.filter(d=>s.sel[d.id]):[];
+    const q=s.query.trim().toLowerCase();
+    const shown=q?DOCS.filter(d=>(d.file+" "+d.title+" "+d.kind+" "+d.ext).toLowerCase().indexOf(q)>-1):DOCS;
+    const NOTES={b2:2,b4:1};
+    const briefShownCount=BRIEFS.filter(b=>!q||(b.title+" "+b.sub+" "+b.status).toLowerCase().indexOf(q)>-1).length;
+    const doc=DOCS.find(d=>d.id===s.openDoc)||DOCS[0];
+    const n=Math.min(s.n,RUN.length);
+    const di=fileIcon(doc.ext,"md",false);
+    const toggle=(id)=>(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this.setState(st=>({sel:Object.assign({},st.sel,{[id]:!st.sel[id]})})); };
+    const dot=(on)=>"position:absolute;top:-6px;right:-6px;width:19px;height:19px;border-radius:100px;display:flex;align-items:center;justify-content:center;font-size:10px;background:"+(on?T.accent:"transparent")+";border:1px solid "+(on?T.accent:T.border)+";color:"+T.onAccent+";opacity:"+(on?"1":"0")+";transform:scale("+(on?"1":".7")+");transition:all .18s cubic-bezier(.2,.8,.3,1)";
+    const tipDoc=DOCS.find(d=>d.id===s.tip);
+
+    return {
+      scrollPad:"flex:1;min-height:0;overflow:auto;padding:clamp(18px,2.4vw,28px) clamp(14px,2vw,26px) "+(sel.length?"140px":"60px"),
+      appStyle:"width:100vw;height:100vh;min-width:360px;background:"+T.bg+";color:"+T.text+";font-family:'Space Grotesk',system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden;position:relative;transition:background .25s,color .25s",
+      headerStyle:"flex:none;display:flex;align-items:center;gap:10px;padding:0 clamp(14px,2vw,26px);height:62px;border-bottom:1px solid "+T.border+";background:"+T.head+";position:relative;z-index:40",
+      markIcon:ICONS.mark(T.text,T.faint),
+      plusIcon:ICONS.plus(14), sparkIcon:ICONS.spark(14), chevIcon:ICONS.chev(12,T.muted),
+      closeIcon:ICONS.close(14), trashIcon:ICONS.trash(13), openIcon:ICONS.open(13),
+      clockIcon:ICONS.clock(13), noteIcon:ICONS.note(13,T.cardMuted), retryIcon:ICONS.retry(13),
+      editIcon:ICONS.edit(13), thumbUpIcon:ICONS.up(14), thumbDownIcon:ICONS.down(14),
+      uploadIcon:ICONS.upload(26,T.muted), checkIcon:ICONS.check(13,T.accent),
+      themeIcon: dark?ICONS.sun(13):ICONS.moon(13),
+      themeLabel: dark?"Light":"Dark",
+      themeBtn:ghost(34),
+      toggleTheme:()=>this.setState(st=>({theme:st.theme==="dark"?"light":"dark"})),
+      ghostBtn:ghost(34), ghostBtnSm:ghost(31), primaryBtn:primary(34), primaryBtnSm:primary(31),
+      dangerBtnSm:"display:flex;align-items:center;gap:6px;height:31px;padding:0 13px;border-radius:100px;border:1px solid "+T.danger+"66;background:transparent;color:"+T.danger+";font:400 12px 'Space Grotesk',sans-serif;cursor:pointer",
+      linkBtn:"border:0;background:transparent;color:"+T.muted+";font:400 12px 'Space Grotesk',sans-serif;cursor:pointer;text-decoration:underline;white-space:nowrap",
+      tinyLink:"border:0;background:transparent;padding:0;"+mono+"font-size:9px;letter-spacing:.1em;color:"+T.faint+";cursor:pointer;text-decoration:underline",
+      microLabel:microLabel, microFaint:microFaint, microAccent:mono+"font-size:9px;letter-spacing:.14em;color:"+T.accent,
+      h2Style:"font-family:Literata,Georgia,serif;font-size:clamp(18px,2vw,21px);font-weight:400;margin:0",
+      vRule:"width:1px;height:20px;background:"+T.border,
+
+      quickOn:()=>this.setState({quick:true}),
+      quickOff:()=>this.setState({quick:false}),
+      quickMenu:"position:absolute;right:0;top:calc(100% + 2px);width:min(330px,90vw);background:"+T.sheet+";border:1px solid "+T.border+";border-radius:14px;box-shadow:0 26px 46px -22px rgba(0,0,0,"+(dark?".9":".35")+");z-index:60;overflow:hidden;transform-origin:top right;max-height:"+(s.quick?"440px":"0px")+";opacity:"+(s.quick?"1":"0")+";transform:translateY("+(s.quick?"0":"-4px")+") scale("+(s.quick?"1":".97")+");pointer-events:"+(s.quick?"auto":"none")+";transition:max-height .38s cubic-bezier(.32,.72,0,1),opacity .3s cubic-bezier(.32,.72,0,1),transform .38s cubic-bezier(.32,.72,0,1);transition-delay:"+(s.quick?".11s,.11s,.11s":"0s"),
+      quickFoot:"display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 16px 13px;border-top:1px solid "+T.soft+";margin-top:6px",
+      quickDocs:DOCS.slice(0,4).map(d=>{const on=!!s.sel[d.id],i=fileIcon(d.ext,"sm",on);return{
+        name:d.file,ext:d.ext,icon:i.wrap,fold:i.fold,label:i.label,toggle:toggle(d.id),
+        box:"width:17px;height:17px;flex:none;border-radius:100px;display:flex;align-items:center;justify-content:center;font-size:9.5px;border:1px solid "+(on?T.accent:T.border)+";background:"+(on?T.accent:"transparent")+";color:"+T.onAccent,
+        check:on?"✓":"",
+        row:"display:flex;align-items:center;gap:11px;width:100%;padding:8px 16px;border:0;background:"+(on?T.hoverBg:"transparent")+";color:"+T.text+";cursor:pointer;transition:background .14s"};}),
+      quickGen:"height:30px;padding:0 15px;border-radius:100px;border:0;background:"+(sel.length?T.accent:T.soft)+";color:"+(sel.length?T.onAccent:T.faint)+";font:600 11.5px 'Space Grotesk',sans-serif;cursor:"+(sel.length?"pointer":"not-allowed"),
+      countShort:sel.length+" SELECTED",
+
+      accountOpen:s.accountOpen,
+      accountBtn:"display:flex;align-items:center;gap:9px;height:40px;padding:0 12px 0 5px;border-radius:100px;border:1px solid "+(s.accountOpen?T.border:"transparent")+";background:"+(s.accountOpen?T.hoverBg:"transparent")+";color:"+T.text+";cursor:pointer;transition:border-color .16s,background .16s",
+      avatarStyle:"width:28px;height:28px;border-radius:100px;background:"+(dark?"#2C2B27":"#E7E1D3")+";color:"+T.text+";"+mono+"font-size:10px;display:flex;align-items:center;justify-content:center;flex:none",
+      orgLine:mono+"font-size:9px;letter-spacing:.1em;color:"+T.faint+";white-space:nowrap",
+      toggleAccount:()=>this.setState(st=>({accountOpen:!st.accountOpen,quick:false})),
+      closeAccount:()=>this.setState({accountOpen:false}),
+      accountMenu:"position:absolute;right:0;top:calc(100% + 6px);width:256px;background:"+T.sheet+";border:1px solid "+T.border+";border-radius:14px;overflow:hidden;box-shadow:0 26px 46px -22px rgba(0,0,0,"+(dark?".9":".35")+");animation:sn-rise .16s ease both;z-index:60",
+      menuHead:"padding:13px 15px;border-bottom:1px solid "+T.soft,
+      menuSection:"padding:9px 0;border-bottom:1px solid "+T.soft,
+      menuRowActive:"display:flex;align-items:center;justify-content:space-between;padding:9px 15px;font-size:12.5px;background:"+T.hoverBg,
+      menuRow:"padding:9px 15px;font-size:12.5px;color:"+T.muted,
+      menuBtn:"width:100%;text-align:left;padding:11px 15px;border:0;background:transparent;font:400 12.5px 'Space Grotesk',sans-serif;color:"+T.text+";cursor:pointer",
+      signOut:()=>this.setState({signedOut:true,accountOpen:false}),
+
+      isPopulated:v==="populated", isEmpty:v==="empty", isLoading:v==="loading", isError:v==="error",
+      skeletons:[{},{},{},{},{}],
+      docSub:v==="populated"?(q?shown.length+" OF 5 FILES":"5 FILES"):v==="loading"?"LOADING":v==="error"?"UNAVAILABLE":"NONE",
+      briefSub:v==="populated"?(q?briefShownCount+" MATCHING":"4 · ONE RUNNING"):v==="loading"?"LOADING":v==="error"?"UNAVAILABLE":"NONE",
+      retry:()=>{this.setState({view:"loading"});setTimeout(()=>this.setState({view:"populated"}),1700);},
+      stateTabs:STATES.map(t=>({label:t[1],
+        go:()=>{ if(t[0]==="notfound")this.setState({sheet:"notfound"}); else if(t[0]==="signin")this.setState({signedOut:true,expired:false,signinError:false}); else this.setState({view:t[0],sheet:null}); },
+        style:"height:24px;padding:0 11px;border-radius:100px;border:1px solid "+(v===t[0]?T.accent:T.border)+";background:transparent;color:"+(v===t[0]?T.accent:T.faint)+";"+mono+"font-size:9px;letter-spacing:.1em;cursor:pointer;transition:all .16s"})),
+
+      briefCards:BRIEFS.filter(b=>!q||(b.title+" "+b.sub+" "+b.status).toLowerCase().indexOf(q)>-1).map((b,bi)=>{
+        const on=s.hover===b.id;
+        const big=false;
+        return {
+        remove:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this.setState({sheet:"delete",delBrief:b.title,hover:null}); },
+        delBtn:"position:absolute;top:10px;right:10px;z-index:6;width:28px;height:28px;border-radius:100px;border:1px solid "+(dark?"#3A382F":"#DCD3BF")+";background:"+T.card+";color:"+T.danger+";cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:"+(on?"1":"0")+";transform:scale("+(on?"1":".85")+");pointer-events:"+(on?"auto":"none")+";transition:opacity .24s cubic-bezier(.32,.72,0,1),transform .24s cubic-bezier(.32,.72,0,1)",
+        cellRef:(el)=>{ this.cells[b.id]=el; },
+        cell:"position:relative;z-index:"+(on?5:1)+";flex:1 1 300px;max-width:"+(sel.length?"none":"none")+";min-width:min(300px,100%)",
+        notes:(NOTES[b.id]||0)+" NOTES",
+        noteStyle:mono+"font-size:9px;letter-spacing:.1em;color:"+(NOTES[b.id]?T.accent:T.cardMuted),
+        title:b.title, sub:b.sub, date:b.date, status:b.status, rating:b.rating||"NOT RATED", count:b.srcs.length+" SOURCES",
+        z:on?5:1,
+        on:()=>{ if(this.hv) clearTimeout(this.hv); this.hv=setTimeout(()=>this.setState({hover:b.id}),90); },
+        off:()=>{ if(this.hv) clearTimeout(this.hv); this.hv=setTimeout(()=>this.setState(st=>({hover:st.hover===b.id?null:st.hover})),80); },
+        open:()=>{ if(b.state==="gen"){this.setState({sheet:"gen"});this.run();} else this.setState({sheet:"brief"}); },
+        card:"position:relative;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;width:100%;min-height:196px;text-align:left;padding:0;font-size:0;line-height:0;border:1px solid "+(on?T.accent+"55":(dark?"#2E2C26":"#E2DBCA"))+";border-bottom:"+(on?"0":"1px solid "+(dark?"#2E2C26":"#E2DBCA"))+";cursor:pointer;background:"+T.card+";border-radius:"+(on?"12px 12px 0 0":"12px")+";overflow:hidden;box-shadow:0 2px 5px rgba(0,0,0,"+(dark?".45":".12")+")"+(on?",0 26px 42px -22px rgba(0,0,0,"+(dark?".85":".28")+")":"")+";transform:translateY("+(on?"-2px":"0")+");transition:transform .38s cubic-bezier(.32,.72,0,1),box-shadow .38s cubic-bezier(.32,.72,0,1),border-color .28s ease,border-radius .2s ease",
+        margin:"position:absolute;left:34px;top:0;bottom:0;width:1px;background:"+T.cardMargin,
+        rules:"position:absolute;left:0;right:0;top:42px;bottom:0;background-image:repeating-linear-gradient(transparent 0px,transparent 21px,"+T.cardRule+" 22px)",
+        dateStyle:mono+"font-size:8.5px;letter-spacing:.16em;color:"+T.cardMuted,
+        titleStyle:"display:block;font-family:Literata,Georgia,serif;font-size:19px;line-height:22px;color:"+T.cardText+";min-height:44px",
+        subStyle:"display:block;margin-top:5px;font-size:12.5px;line-height:1.5;color:"+(b.state==="failed"?T.danger:b.state==="gen"?T.accent:T.cardMuted)+";font-family:"+(b.state==="gen"?"'IBM Plex Mono',monospace;font-size:10.5px":"'Space Grotesk',sans-serif"),
+        metaStyle:mono+"font-size:9px;letter-spacing:.1em;color:"+T.cardMuted,
+        stamp:mono+"font-size:8.5px;letter-spacing:.14em;padding:3px 9px;border-radius:100px;border:1px solid "+(b.state==="failed"?T.danger:b.state==="gen"?T.accent:T.cardMuted+"66")+";color:"+(b.state==="failed"?T.danger:b.state==="gen"?T.accent:T.cardMuted),
+        tray:"position:relative;margin:"+(on?"-2px 0 0":"0")+";background:"+T.card+";border:1px solid "+(on?T.accent+"55":"transparent")+";border-top:0;border-radius:0 0 12px 12px;overflow:hidden;box-shadow:"+(on?"0 26px 42px -22px rgba(0,0,0,"+(dark?".85":".28")+")":"none")+";transform:translateY("+(on?"-2px":"0")+");transition:max-height .42s cubic-bezier(.32,.72,0,1),opacity .28s cubic-bezier(.32,.72,0,1),transform .38s cubic-bezier(.32,.72,0,1);max-height:"+(on?"260px":"0px")+";opacity:"+(on?"1":"0"),
+        trayHead:microLabel+";padding:12px 16px 6px 48px;border-top:1px solid "+T.cardRule,
+        sources:b.srcs.map(id=>{const d=DOCS.find(x=>x.id===id),i=fileIcon(d.ext,"sm",false);return{
+          file:d.file, ext:d.ext, sizeText:d.size, icon:i.wrap, fold:i.fold, label:i.label,
+          size:mono+"font-size:9px;letter-spacing:.08em;color:"+T.cardMuted,
+          row:"display:flex;align-items:center;gap:11px;width:100%;padding:8px 16px 8px 48px;border:0;background:transparent;color:"+T.cardText+";cursor:pointer;transition:background .16s ease",
+          open:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this.setState({sheet:"doc",openDoc:d.id,hover:null}); }};})
+      };}),
+
+      dropZone:"position:relative;padding:"+(s.dragging?"10px":"0")+";border-radius:16px;outline:"+(s.dragging?"2px dashed "+T.accent:"0")+";outline-offset:6px;transition:outline-color .18s",
+      dragging:s.dragging,
+      onDragOver:(e)=>{ e.preventDefault(); if(!s.dragging) this.setState({dragging:true}); },
+      onDragLeave:()=>this.setState({dragging:false}),
+      onDrop:(e)=>{ e.preventDefault(); const f=(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]); const nm=f?f.name:"bridgeport-allocation.pdf"; this.setState({dragging:false,dropped:true,droppedName:nm}); setTimeout(()=>this.setState({dropped:false}),2600); },
+      dropOverlay:"position:absolute;inset:0;border-radius:16px;background:"+(dark?"rgba(15,15,14,.86)":"rgba(240,236,226,.9)")+";display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;animation:sn-fade .15s ease both;z-index:6",
+      dropped:s.dropped, droppedName:s.droppedName,
+      toastStyle:"display:inline-flex;align-items:center;gap:9px;margin-top:14px;padding:9px 15px;border-radius:100px;background:"+T.sheet+";border:1px solid "+T.border+";animation:sn-rise .2s ease both",
+      emptyDrop:"display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:44px 24px;border:1px dashed "+(s.dragging?T.accent:T.border)+";border-radius:16px;background:"+(s.dragging?(dark?"#191815":"#F5F1E6"):"transparent")+";transition:border-color .18s,background .18s",
+
+      searchIcon:ICONS.search(13,T.faint),
+      query:s.query,
+      onQuery:(e)=>this.setState({query:e.target.value}),
+      searchWrap:"display:flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:100px;border:1px solid "+T.border+";background:transparent;color:"+T.faint+";width:clamp(180px,26vw,320px)",
+      searchInput:"flex:1;min-width:0;border:0;outline:0;background:transparent;color:"+T.text+";font:400 12.5px 'Space Grotesk',sans-serif",
+      bentoGrid:"display:flex;flex-wrap:wrap;align-items:flex-start;gap:clamp(14px,1.6vw,18px);margin-bottom:42px",
+      docTiles:shown.map(d=>{const on=!!s.sel[d.id],hv=s.hoverDoc===d.id,i=fileIcon(d.ext,"md",on);return{
+        file:d.file, ext:d.ext, meta:d.size+" · "+d.meta,
+        icon:i.wrap+(hv?";transform:translateY(-4px)":""), fold:i.fold, rule1:i.rule1, rule2:i.rule2, label:i.label,
+        badge:dot(on), check:on?"✓":"",
+        on:()=>this.setState({hoverDoc:d.id}), off:()=>this.setState({hoverDoc:null}),
+        toggle:toggle(d.id),
+        dragStart:(e)=>{ if(e&&e.dataTransfer) e.dataTransfer.setData("text/plain",d.file); },
+        open:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this.setState({sheet:"doc",openDoc:d.id}); },
+        nameStyle:"text-align:center;font-size:12px;line-height:1.4;margin-top:11px;word-break:break-word;color:"+T.text,
+        metaStyle:"text-align:center;"+mono+"font-size:8.5px;letter-spacing:.1em;color:"+T.faint+";margin-top:5px",
+        openBtn:"display:block;margin:9px auto 0;border:0;background:transparent;"+mono+"font-size:9px;letter-spacing:.12em;color:"+(hv?T.accent:"transparent")+";cursor:pointer;transition:color .16s",
+        tile:"padding:14px 8px;border-radius:14px;cursor:pointer;background:"+(on?(dark?"rgba(255,204,72,.06)":"rgba(232,179,42,.12)"):"transparent")+";transition:background .18s"};}),
+      addTile:"display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:14px 8px;border:1px dashed "+T.border+";border-radius:14px;background:transparent;color:"+T.muted+";cursor:pointer;min-height:150px;transition:border-color .18s,background .18s",
+      addCircle:"width:30px;height:30px;border-radius:100px;border:1px solid "+T.border+";display:flex;align-items:center;justify-content:center;color:"+T.muted,
+
+      selBar:"position:absolute;left:50%;bottom:24px;transform:translateX(-50%) translateY("+(sel.length?"0":"18px")+");display:flex;align-items:center;gap:12px;padding:9px 14px;border-radius:100px;background:"+T.sheet+";border:1px solid "+T.border+";box-shadow:0 24px 44px -20px rgba(0,0,0,"+(dark?".9":".3")+");z-index:45;opacity:"+(sel.length?"1":"0")+";pointer-events:"+(sel.length?"auto":"none")+";transition:opacity .2s ease,transform .24s cubic-bezier(.2,.8,.3,1);max-width:calc(100vw - 32px);overflow-x:auto",
+      selIcons:sel.map(d=>{const i=fileIcon(d.ext,"sm",false);return{ext:d.ext,icon:i.wrap+";margin-right:-5px",fold:i.fold,label:i.label};}),
+      countLabel:sel.length===1?"1 document selected":sel.length+" documents selected",
+      clearSel:()=>this.setState({sel:{}}),
+      openSelected:()=>this.setState({sheet:"doc",openDoc:(sel[0]||DOCS[0]).id}),
+      renameSelected:()=>this.setState({sheet:"doc",openDoc:(sel[0]||DOCS[0]).id,editing:true,docSaved:false}),
+      notEditing:!s.editing,
+      onDocTitle:(e)=>{ const t=e.target.value; this.setState(st=>({titles:Object.assign({},st.titles,{[st.openDoc]:t})})); },
+      renameInput:"font-family:Literata,Georgia,serif;font-size:clamp(20px,2.4vw,24px);font-weight:400;margin:8px 0 0;width:100%;background:transparent;color:"+T.text+";border:0;border-bottom:1px solid "+T.accent+";outline:0;padding:2px 0",
+      askDelete:()=>this.setState({sheet:"delete"}),
+
+      scrim:"position:absolute;inset:0;background:rgba(6,6,5,"+(dark?".72":".45")+");z-index:50;display:flex;justify-content:center;align-items:flex-start;padding:clamp(12px,2vw,24px);overflow:auto;animation:sn-fade .16s ease both",
+      sheetOpen:!!s.sheet,
+      sheetStyle:"width:100%;max-width:"+(s.sheet==="brief"?"1080px":s.sheet==="doc"?"960px":s.sheet==="notfound"||s.sheet==="delete"?"460px":"740px")+";background:"+(s.sheet==="brief"?"transparent":T.sheet)+";border:"+(s.sheet==="brief"?"0":"1px solid "+T.border)+";border-radius:16px;overflow:visible;box-shadow:0 30px 60px -30px rgba(0,0,0,.9);animation:sn-rise .24s cubic-bezier(.2,.8,.3,1) both",
+      isDocSheet:s.sheet==="doc", isPasteSheet:s.sheet==="paste", isComposeSheet:s.sheet==="compose",
+      isGenSheet:s.sheet==="gen", isBriefSheet:s.sheet==="brief", isNotFoundSheet:s.sheet==="notfound", isDeleteSheet:s.sheet==="delete",
+      closeSheet:()=>{ this.stop(); this.setState({sheet:null,tip:null,delBrief:null}); },
+      openPaste:this.open("paste"), openCompose:this.open("compose"), openBriefing:this.open("brief"),
+      closeBtn:"width:31px;height:31px;border-radius:100px;border:1px solid "+T.border+";background:transparent;color:"+T.muted+";cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .16s",
+      sheetTitle:"font-family:Literata,Georgia,serif;font-size:clamp(20px,2.4vw,24px);font-weight:400;margin:8px 0 0;color:"+T.text,
+      emptyBox:"border:1px solid "+T.border+";border-radius:16px;padding:26px 28px;margin-bottom:42px;max-width:60ch;animation:sn-fade .24s ease both",
+      emptyP:"font-size:13.5px;line-height:1.65;color:"+T.muted+";margin:9px 0 16px",
+      errBox:"border:1px solid "+T.danger+"55;border-radius:16px;background:"+(dark?"#1A1512":"#F8EDE9")+";padding:18px 20px;margin-bottom:42px;max-width:60ch;display:flex;gap:14px;animation:sn-fade .24s ease both",
+      errRule:"width:2px;background:"+T.danger+";flex:none;border-radius:2px",
+      errTitle:"font-size:13.5px;font-weight:500;color:"+T.danger,
+      errBody:"font-size:13px;line-height:1.6;color:"+T.muted+";margin:6px 0 0",
+      errBtn:"display:flex;align-items:center;gap:7px;height:30px;padding:0 14px;border-radius:100px;border:1px solid "+T.danger+";background:transparent;color:"+T.danger+";font:500 12px 'Space Grotesk',sans-serif;cursor:pointer;margin-top:13px",
+      briefSkel:"border-radius:12px;background:"+T.card+";height:176px;position:relative;overflow:hidden;border:1px solid "+T.soft,
+      skelSweep:"position:absolute;top:0;bottom:0;width:80px;background:linear-gradient(90deg,transparent,"+T.accent+"22,transparent);animation:sn-sweep 1.5s linear infinite",
+      skelMargin:"position:absolute;left:34px;top:0;bottom:0;width:1px;background:"+T.cardMargin+"66",
+      skelBar1:"position:absolute;left:48px;right:18px;top:22px;height:13px;border-radius:3px;background:"+(dark?"#2A2823":"#EDE6D6"),
+      skelBar2:"position:absolute;left:48px;right:70px;top:48px;height:11px;border-radius:3px;background:"+(dark?"#232119":"#F1EBDD"),
+      skelBar3:"position:absolute;left:48px;width:90px;bottom:20px;height:9px;border-radius:3px;background:"+(dark?"#232119":"#F1EBDD"),
+      skelIcon:"width:52px;height:66px;border-radius:8px;background:linear-gradient(90deg,"+(dark?"#1E1D1A 0%,#2A2925 50%,#1E1D1A":"#E9E3D4 0%,#F5F1E7 50%,#E9E3D4")+" 100%);background-size:340px 100%;animation:sn-shim 1.3s linear infinite",
+      skelName:"height:9px;width:78%;border-radius:3px;background:"+(dark?"#1E1D1A":"#E9E3D4")+";margin-top:13px",
+      skelMeta:"height:7px;width:52%;border-radius:3px;background:"+(dark?"#1A1917":"#EFEADC")+";margin-top:8px",
+
+      docFile:doc.file, docTitle:(s.titles[doc.id]||doc.title), docExt:doc.ext,
+      docMeta:doc.kind.toUpperCase()+" · "+doc.size+" · ADDED "+doc.meta,
+      docIcon:di.wrap, docFold:di.fold, docRule1:di.rule1, docRule2:di.rule2, docLabel:di.label,
+      docBodyStyle:"flex:1;min-width:280px;font-family:Literata,Georgia,serif;font-size:15px;line-height:1.8;color:"+T.muted+";max-width:66ch;"+(s.editing?"border:1px solid "+T.accent+";border-radius:12px;padding:16px 18px;":""),
+      editLabel:s.editing?(s.saving?"Saving…":"Save"):"Edit",
+      editStyle:"display:flex;align-items:center;gap:6px;height:31px;padding:0 14px;border-radius:100px;border:1px solid "+(s.editing?T.accent:T.border)+";background:transparent;color:"+(s.editing?T.accent:T.text)+";font:400 12px 'Space Grotesk',sans-serif;cursor:pointer",
+      toggleEdit:()=>{ if(!s.editing)this.setState({editing:true,docSaved:false}); else {this.setState({saving:true});setTimeout(()=>this.setState({saving:false,editing:false,docSaved:true}),650);} },
+      docSaved:s.docSaved,
+      usedRow:"display:block;width:100%;text-align:left;border:0;background:transparent;padding:12px 0;border-bottom:1px solid "+T.soft+";cursor:pointer;color:"+T.text,
+      usedRowStatic:"padding:12px 0;border-bottom:1px solid "+T.soft+";color:"+T.text,
+      historyRow:"display:flex;gap:10px;padding:6px 0;"+mono+"font-size:9.5px;color:"+T.muted,
+      docAudit:[{t:"12 AUG 09:12",what:"Uploaded by Mara Ellison"},{t:"12 AUG 09:14",what:"Title edited"},{t:"24 AUG 11:20",what:"Read by briefing 038"},{t:"01 SEP 09:41",what:"Read by briefing 041"}],
+
+      delCount:s.delBrief?"this briefing":(sel.length===1?"this document":sel.length+" documents"),
+      delNames:s.delBrief?s.delBrief:sel.map(d=>d.file).join(", "),
+      delLabel:s.deleting?"Deleting…":"Delete",
+      delBtn:"height:34px;padding:0 16px;border-radius:100px;border:0;background:"+T.danger+";color:"+(dark?"#1A1512":"#FFFFFF")+";font:600 12.5px 'Space Grotesk',sans-serif;cursor:pointer",
+      confirmDelete:()=>{this.setState({deleting:true});setTimeout(()=>this.setState({deleting:false,sheet:null,delBrief:null,sel:s.delBrief?s.sel:{}}),700);},
+
+      sheetDrop:"border:1px dashed "+(s.dragging?T.accent:T.border)+";border-radius:14px;padding:22px 20px;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;margin-top:16px;background:"+(s.dragging?(dark?"#191815":"#F5F1E6"):"transparent")+";transition:border-color .24s ease,background .24s ease",
+      fileTypes:TYPES.map(t=>{const i=fileIcon(t,"sm",false);return{ext:t,icon:i.wrap,fold:i.fold,label:i.label};}),
+      kinds:KINDS.map(k=>({label:k,pick:()=>this.setState({kind:k}),
+        style:"height:29px;padding:0 14px;border-radius:100px;border:1px solid "+(s.kind===k?T.accent:T.border)+";background:transparent;color:"+(s.kind===k?T.accent:T.muted)+";font:400 12px 'Space Grotesk',sans-serif;cursor:pointer;transition:all .16s"})),
+      titleMissing:s.titleMissing,
+      titleFieldText:s.titleMissing?"Give this document a title":"Ridgeline Foods — VP Ops interview, 26 Aug",
+      titleFieldStyle:"border-bottom:1px solid "+(s.titleMissing?T.danger:T.border)+";padding:8px 0;font-family:Literata,serif;font-size:17px;color:"+(s.titleMissing?T.faint:T.text),
+      titleFieldPlain:"border-bottom:1px solid "+T.border+";padding:8px 0;font-family:Literata,serif;font-size:17px;color:"+T.text,
+      toggleTitle:()=>this.setState(st=>({titleMissing:!st.titleMissing})),
+      titleToggleLabel:s.titleMissing?"Fill the title back in":"Show missing-title state",
+      savePaste:()=>{ if(s.titleMissing)return; this.setState({saving:true}); setTimeout(()=>this.setState({saving:false,sheet:null}),800); },
+      saveLabel:s.saving?"Saving…":"Save document",
+      saveStyle:primary(35),
+      pasteBox:"max-height:180px;overflow:hidden;border:1px solid "+T.soft+";border-radius:12px;padding:14px 16px;background:"+(dark?"#131311":"#FFFFFF")+";font-family:Literata,serif;font-size:14px;line-height:1.75;color:"+T.muted,
+
+      pickTiles:DOCS.map(d=>{const on=!!s.sel[d.id],i=fileIcon(d.ext,"md",on);return{
+        file:d.file,ext:d.ext,icon:i.wrap,fold:i.fold,rule1:i.rule1,rule2:i.rule2,label:i.label,
+        badge:dot(on),check:on?"✓":"",toggle:toggle(d.id),
+        nameStyle:"text-align:center;font-size:11.5px;line-height:1.4;margin-top:10px;word-break:break-word;color:"+T.text,
+        tile:"padding:12px 8px;border-radius:14px;cursor:pointer;background:"+(on?(dark?"rgba(255,204,72,.06)":"rgba(232,179,42,.12)"):"transparent")+";transition:background .18s"};}),
+      pickedChips:sel.map(d=>{const i=fileIcon(d.ext,"sm",false);return{file:d.file,ext:d.ext,icon:i.wrap,fold:i.fold,label:i.label,
+        chip:"display:flex;align-items:center;gap:8px;border:1px solid "+T.border+";border-radius:100px;padding:5px 12px 5px 6px;font-size:11.5px;color:"+T.muted};}),
+      noneSelected:sel.length===0,
+      genBtnStyle:"display:flex;align-items:center;gap:7px;height:36px;padding:0 18px;border-radius:100px;border:0;font:600 12.5px 'Space Grotesk',sans-serif;background:"+(sel.length?T.accent:T.soft)+";color:"+(sel.length?T.onAccent:T.faint)+";cursor:"+(sel.length?"pointer":"not-allowed"),
+      startGen:()=>{ if(sel.length){ this.setState({sheet:"gen",quick:false}); this.run(); } },
+      retryGen:()=>this.run(),
+      failGen:()=>{ this.stop(); this.setState({genFailed:true}); },
+      genChipRow:"display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 0;padding-bottom:16px;border-bottom:1px solid "+T.soft,
+      lines:RUN.slice(0,Math.max(n,1)).map((l,i)=>{
+        const last=i===Math.max(n,1)-1,bad=s.genFailed&&last,cur=!s.genFailed&&last&&n<RUN.length;
+        const tagColor=bad?T.danger:l.tag==="TOOL"?"#7FA6D9":l.tag==="THINK"?"#B08CD9":l.tag==="DONE"?"#8FBF87":T.accent;
+        return { t:l.t, tag:bad?"ERROR":l.tag, text:bad?"Stopped while drafting — the model didn't respond in time.":l.text,
+          wrap:"display:flex;gap:12px;align-items:flex-start;animation:sn-line .24s cubic-bezier(.2,.8,.3,1) both",
+          timeStyle:mono+"font-size:10.5px;color:"+T.faint+";flex:none;padding-top:2px",
+          tagStyle:mono+"font-size:8.5px;letter-spacing:.14em;color:"+tagColor+";border:1px solid "+tagColor+"55;border-radius:4px;padding:2px 6px;flex:none;"+(cur?"animation:sn-pulse 1.1s ease-in-out infinite":""),
+          style:(l.tag==="TOOL"?mono+"font-size:12px;":"font-size:13px;font-family:'Space Grotesk',sans-serif;")+"line-height:1.55;color:"+(bad?T.danger:cur?T.text:T.muted)};
+      }),
+      streaming:!s.genFailed && s.chars>0,
+      streamed:STREAM.slice(0,s.chars),
+      streamBox:"border:1px solid "+T.soft+";border-radius:12px;padding:14px 16px;background:"+(dark?"#131311":"#FFFFFF")+";margin-top:4px",
+      streamText:"font-family:Literata,Georgia,serif;font-size:14.5px;line-height:1.75;color:"+T.text,
+      caret:"color:"+T.accent+";animation:sn-blink 1s steps(1,end) infinite",
+      genCount:s.genFailed?"STOPPED AT STEP "+n+" OF "+RUN.length:n+" OF "+RUN.length+" STEPS",
+      genElapsed:s.elapsed.toFixed(1)+"S ELAPSED",
+      genChipLabel:s.genFailed?"FAILED":(n<RUN.length?"GENERATING":"COMPLETE"),
+      genChip:mono+"font-size:9px;letter-spacing:.14em;padding:5px 11px;border-radius:100px;border:1px solid "+(s.genFailed?T.danger:T.accent)+";color:"+(s.genFailed?T.danger:T.accent),
+      genBar:"height:3px;border-radius:16px 16px 0 0;background:"+(s.genFailed?T.danger:T.accent)+";width:"+(s.genFailed?"100%":Math.round((n/RUN.length)*100)+"%")+";transition:width .6s cubic-bezier(.3,.9,.3,1)",
+      genFoot:"display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid "+T.soft+";margin-top:16px;padding-top:14px",
+      genDone:!s.genFailed&&n>=RUN.length, genRunning:!s.genFailed&&n<RUN.length, genFailed:s.genFailed,
+
+      briefSheetCard:"position:relative;border-radius:16px;background:"+T.card+";color:"+T.cardText+";border:1px solid "+(dark?"#2E2C26":"#E2DBCA")+";box-shadow:0 30px 60px -30px rgba(0,0,0,.9);overflow:hidden",
+      briefSheetMargin:"position:absolute;left:clamp(34px,3.4vw,52px);top:0;bottom:0;width:1px;background:"+T.cardMargin,
+      briefTitleStyle:"font-family:Literata,Georgia,serif;font-size:clamp(24px,3.4vw,33px);font-weight:400;letter-spacing:-.02em;line-height:1.16;margin:12px 0 0;max-width:20ch;color:"+T.cardText,
+      briefLede:"font-family:Literata,Georgia,serif;font-size:clamp(17px,1.8vw,19px);line-height:1.6;margin:0 0 22px;color:"+T.cardText,
+      groundRow:"display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:18px 0 0;padding:14px 0;border-top:1px solid "+(dark?"#2E2C26":"#E7DFCC")+";border-bottom:1px solid "+(dark?"#2E2C26":"#E7DFCC"),
+      sourceChips:["d1","d3","d5"].map(id=>{const d=DOCS.find(x=>x.id===id),i=fileIcon(d.ext,"sm",false);return{
+        file:d.file,ext:d.ext,icon:i.wrap,fold:i.fold,label:i.label,
+        open:(e)=>{ if(e&&e.stopPropagation)e.stopPropagation(); this.setState({sheet:"doc",openDoc:id}); },
+        style:"display:flex;align-items:center;gap:8px;height:32px;padding:0 13px 0 6px;border-radius:100px;border:1px solid "+(dark?"#3A382F":"#DCD3BF")+";background:transparent;color:"+T.cardText+";font:400 12px 'Space Grotesk',sans-serif;cursor:pointer;transition:border-color .16s"};}),
+
+      sections:SECTIONS.map((sec,idx)=>{
+        const items=s.notes[idx]||[];
+        return { head:sec.head,p1:sec.p1,p2:sec.p2,p3:sec.p3,citeLabel:sec.citeLabel,
+          noteItems:items.map((it,j)=>({
+            text:it.text, who:"MARA ELLISON · "+it.time,
+            card:"margin-top:11px;background:"+(dark?"rgba(255,204,72,.10)":"#FFF4CE")+";border-left:2px solid "+T.accent+";padding:10px 12px;border-radius:0 8px 8px 0;animation:sn-line .26s cubic-bezier(.32,.72,0,1) both",
+            meta:mono+"font-size:8.5px;letter-spacing:.12em;color:"+T.cardMuted,
+            body:"font-family:Literata,serif;font-size:13.5px;line-height:1.55;margin-top:5px;color:"+T.cardText,
+            del:"border:0;background:transparent;padding:0;"+mono+"font-size:8.5px;letter-spacing:.1em;color:"+T.cardMuted+";cursor:pointer;text-decoration:underline",
+            remove:()=>this.setState(st=>{ const arr=(st.notes[idx]||[]).slice(); arr.splice(j,1); const nx=Object.assign({},st.notes); if(arr.length) nx[idx]=arr; else delete nx[idx]; return {notes:nx}; })
+          })),
+          headStyle:"font-family:'Space Grotesk',sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:"+T.cardMuted+";margin:0 0 9px",
+          pStyle:"font-family:Literata,Georgia,serif;font-size:16px;line-height:1.8;margin:0 0 12px;color:"+T.cardText,
+          citeStyle:"cursor:help;color:"+T.accent+";vertical-align:super;font-size:11px;"+mono+"padding:0 2px;border-bottom:1px dotted "+T.accent,
+          hoverCite:(e)=>{ const r=e.currentTarget.getBoundingClientRect(); const w=(typeof window!=="undefined"?window.innerWidth:1440); this.setState({tip:sec.cite,tipX:Math.min(w-172,Math.max(172,r.left+r.width/2)),tipY:r.top,tipBelow:r.top<200?r.bottom:0}); },
+      leaveCite:()=>{ if(this.tipT) clearTimeout(this.tipT); this.tipT=setTimeout(()=>this.setState({tip:null}),160); },
+          hoverPara:()=>this.setState({hoverPara:idx}),
+          leavePara:()=>this.setState(st=>({hoverPara:st.hoverPara===idx?null:st.hoverPara})),
+          noteBtn:"position:absolute;left:-30px;top:0;width:24px;height:24px;border-radius:100px;border:1px solid "+(dark?"#3A382F":"#DCD3BF")+";background:"+T.card+";cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:"+(s.hoverPara===idx||s.noteOpen===idx?"1":"0")+";transform:translateX("+(s.hoverPara===idx||s.noteOpen===idx?"0":"-4px")+");transition:opacity .24s cubic-bezier(.32,.72,0,1),transform .24s cubic-bezier(.32,.72,0,1)",
+          addNote:()=>this.setState({noteOpen:idx,draft:""}),
+          noteOpen:s.noteOpen===idx, draft:s.draft,
+          textarea:"width:100%;height:66px;border:1px solid "+(dark?"#3A382F":"#DCD3BF")+";border-radius:10px;background:"+(dark?"#17171400":"#FFFDF6")+";color:"+T.cardText+";padding:9px 11px;font-family:Literata,serif;font-size:13.5px;line-height:1.5;resize:none",
+          onDraft:(e)=>this.setState({draft:e.target.value}),
+          saveNote:()=>{ const val=s.draft.trim(); if(!val){ this.setState({noteOpen:null}); return; } this.setState({noteSaving:true}); setTimeout(()=>this.setState(st=>{ const arr=(st.notes[idx]||[]).concat([{text:val,time:"10:0"+((st.notes[idx]||[]).length+3)}]); return {noteSaving:false,noteOpen:null,draft:"",notes:Object.assign({},st.notes,{[idx]:arr})}; }),450); },
+          saveNoteLabel:s.noteSaving?"Saving…":"Comment",
+          saveNoteStyle:"height:28px;padding:0 13px;border-radius:100px;border:0;background:"+T.accent+";color:"+T.onAccent+";font:600 11.5px 'Space Grotesk',sans-serif;cursor:pointer",
+          cancelNote:()=>this.setState({noteOpen:null}) };
+      }),
+      noteList:Object.keys(s.notes).reduce((acc,k)=>acc.concat((s.notes[k]||[]).map(it=>({where:(SECTIONS[k]||{}).head||"",text:it.text}))),[]),
+      noNotes:Object.keys(s.notes).length===0,
+      holdTip:()=>{ if(this.tipT) clearTimeout(this.tipT); },
+      releaseTip:()=>this.setState({tip:null}),
+      noteListItem:"border-left:2px solid "+T.accent+";padding-left:10px;color:"+T.cardText,
+      emptyNote:"font-size:12.5px;color:"+T.cardMuted+";line-height:1.55",
+      logLine:mono+"font-size:9.5px;line-height:1.5;color:"+T.cardMuted,
+
+      tipOpen:!!s.tip,
+      tipStyle:"position:fixed;left:"+s.tipX+"px;top:"+(s.tipBelow?s.tipBelow:s.tipY)+"px;transform:translate(-50%,"+(s.tipBelow?"12px":"calc(-100% - 12px)")+");width:min(320px,84vw);max-height:min(300px,50vh);overflow:auto;background:"+T.tip+";border:1px solid "+T.border+";border-radius:12px;padding:12px 14px;box-shadow:0 18px 34px -18px rgba(0,0,0,.8);z-index:80;animation:sn-fade .18s cubic-bezier(.32,.72,0,1) both;color:"+T.text,
+      tipExt:tipDoc?tipDoc.ext:"", tipFile:tipDoc?tipDoc.file:"",
+      tipMeta:(CITES[s.tip]||{}).tag||"",
+      tipText:(CITES[s.tip]||{}).quote||"",
+      tipQuote:"font-family:Literata,serif;font-size:13.5px;line-height:1.6;margin-top:9px;color:"+T.text,
+      tipIcon:tipDoc?fileIcon(tipDoc.ext,"sm",false).wrap:"", tipFold:tipDoc?fileIcon(tipDoc.ext,"sm",false).fold:"", tipLabel:tipDoc?fileIcon(tipDoc.ext,"sm",false).label:"",
+
+      auditOpen:s.auditOpen,
+      auditLabel:s.auditOpen?"Hide audit":"Audit trail",
+      auditCount:AUDIT.length+Object.keys(s.notes).reduce((a,k)=>a+(s.notes[k]||[]).length,0),
+      auditBtn:"display:flex;align-items:center;gap:6px;height:31px;padding:0 14px;border-radius:100px;border:1px solid "+(s.auditOpen?T.cardText:(dark?"#3A382F":"#DCD3BF"))+";background:"+(s.auditOpen?T.cardText:"transparent")+";color:"+(s.auditOpen?T.card:T.cardText)+";font:400 12px 'Space Grotesk',sans-serif;cursor:pointer;transition:all .16s",
+      toggleAudit:()=>this.setState(st=>({auditOpen:!st.auditOpen})),
+      auditWrap:"border-top:1px solid "+T.cardText+";margin-top:24px;padding-top:18px;animation:sn-line .22s ease both",
+      auditHead:"display:grid;grid-template-columns:96px 118px 1fr 124px;"+mono+"font-size:9px;letter-spacing:.14em;color:"+T.cardMuted+";padding:12px 0 8px;border-bottom:1px solid "+(dark?"#2E2C26":"#E7DFCC"),
+      audit:AUDIT.concat(Object.keys(s.notes).reduce((acc,k)=>acc.concat((s.notes[k]||[]).map(it=>({t:it.time+":00",event:"NOTE",detail:"\u201C"+it.text+"\u201D on \u2018"+(SECTIONS[k]||{}).head+"\u2019",actor:"M. ELLISON"}))),[])).map(a=>({
+        t:a.t,event:a.event,detail:a.detail,actor:a.actor,
+        row:"display:grid;grid-template-columns:96px 118px 1fr 124px;align-items:baseline;padding:8px 0;border-bottom:1px solid "+(dark?"#26241F":"#EFE8D8"),
+        time:mono+"font-size:10px;color:"+T.cardMuted,
+        kind:mono+"font-size:9px;letter-spacing:.12em;color:"+(a.actor==="SYSTEM"?T.cardMuted:T.accent),
+        detailStyle:"font-size:12.5px;color:"+T.cardText,
+        actorStyle:mono+"font-size:9.5px;color:"+T.cardMuted})),
+      fullLog:LOG.map(l=>({t:l[0],text:l[1]})),
+
+      rateUp:()=>{this.setState({working:"up"});setTimeout(()=>this.setState({rating:"up",working:null}),380);},
+      rateDown:()=>{this.setState({working:"down"});setTimeout(()=>this.setState({rating:"down",working:null}),380);},
+      upLabel:s.working==="up"?"Saving…":"Useful",
+      upStyle:"display:flex;align-items:center;gap:7px;height:31px;padding:0 14px;border-radius:100px;cursor:pointer;font:500 12px 'Space Grotesk',sans-serif;transition:all .16s;border:1px solid "+(s.rating==="up"?T.accent:(dark?"#3A382F":"#DCD3BF"))+";background:"+(s.rating==="up"?T.accent:"transparent")+";color:"+(s.rating==="up"?T.onAccent:T.cardText),
+      downStyle:"display:flex;align-items:center;justify-content:center;width:31px;height:31px;border-radius:100px;cursor:pointer;transition:all .16s;border:1px solid "+(s.rating==="down"?T.danger:(dark?"#3A382F":"#DCD3BF"))+";background:"+(s.rating==="down"?T.danger:"transparent")+";color:"+(s.rating==="down"?(dark?"#1A1512":"#FFFFFF"):T.cardText),
+      rated:!!s.rating,
+      ratedStyle:mono+"font-size:9.5px;letter-spacing:.08em;color:"+T.cardMuted+";margin-top:11px;animation:sn-line .2s ease both",
+      ratedLine:s.rating==="up"?"YOU RATED THIS USEFUL":"YOU RATED THIS NOT USEFUL",
+
+      signedOut:s.signedOut, expired:s.expired, signinError:s.signinError,
+      signinWrap:"position:absolute;inset:0;z-index:70;background:"+T.bg+";display:flex;align-items:center;justify-content:center;padding:22px;animation:sn-fade .2s ease both",
+      signinLede:"font-family:Literata,serif;font-size:14.5px;font-style:italic;color:"+T.muted+";margin:9px 0 24px",
+      expiredBox:"border-top:1px solid "+T.soft+";border-bottom:1px solid "+T.soft+";padding:12px 0;margin-bottom:20px",
+      fieldStyle:"border-bottom:1px solid "+T.border+";padding:8px 0;font-size:14px",
+      pwFieldStyle:"border-bottom:1px solid "+(s.signinError?T.danger:T.border)+";padding:8px 0;font-size:14px;letter-spacing:.2em",
+      showExpired:()=>this.setState({expired:true,signinError:false}),
+      showError:()=>this.setState({signinError:true,expired:false}),
+      signIn:()=>{this.setState({signing:true});setTimeout(()=>this.setState({signing:false,signedOut:false,expired:false,signinError:false}),900);},
+      signInLabel:s.signing?"Signing in…":"Sign in",
+      signInStyle:"width:100%;height:38px;margin-top:24px;border-radius:100px;border:0;background:"+T.accent+";color:"+T.onAccent+";font:600 13px 'Space Grotesk',sans-serif;cursor:pointer"
+    };
+  }
+}
+</script>
+</body>
+</html>
