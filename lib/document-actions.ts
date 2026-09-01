@@ -65,7 +65,7 @@ export async function updateDocumentBody(
  */
 export async function deleteDocuments(
   ids: string[]
-): Promise<{ error: string | null; deletedIds: string[] }> {
+): Promise<{ error: string | null; deletedIds: string[]; alreadyGone?: string[] }> {
   if (ids.length === 0) return { error: "Nothing selected.", deletedIds: [] };
   const supabase = createClient();
   const { data, error } = await supabase
@@ -75,19 +75,51 @@ export async function deleteDocuments(
     .select("id"); // named column (R2); proves rows actually went away
   if (error) return { error: error.message, deletedIds: [] };
   const deletedIds = (data ?? []).map((row: { id: string }) => row.id);
-  if (deletedIds.length === 0) {
+  if (deletedIds.length === ids.length) return { error: null, deletedIds };
+
+  // Fewer rows came back than we asked for. That is TWO different situations
+  // and the old code reported both as "couldn't be deleted":
+  //
+  //   (a) the rows are already gone — deleted in another tab, by a teammate,
+  //       or by anything else touching the same org. The workspace list is
+  //       fetched once on mount and (before this change) never revalidated,
+  //       so a tile could outlive its row indefinitely. Clicking it produced
+  //       a red "This document couldn't be deleted", which is the opposite of
+  //       what happened: the delete had nothing to do because the deletion
+  //       already succeeded.
+  //   (b) the rows still exist and the delete was genuinely refused.
+  //
+  // Ask which one it is instead of guessing. RLS scopes this select the same
+  // way it scoped the delete, so a row we can still see is a row we were
+  // really refused.
+  const missing = ids.filter((id) => !deletedIds.includes(id));
+  const { data: survivors, error: checkError } = await supabase
+    .from("documents")
+    .select("id") // named column (R2)
+    .in("id", missing);
+  if (checkError) {
     return {
-      error: "Nothing was deleted — the documents may already be gone.",
-      deletedIds: [],
-    };
-  }
-  if (deletedIds.length < ids.length) {
-    return {
-      error: `Only ${deletedIds.length} of ${ids.length} could be deleted — the rest may already be gone.`,
+      error: `${deletedIds.length} of ${ids.length} were deleted; we couldn't check the rest (${checkError.message}). Reload to see the current list.`,
       deletedIds,
     };
   }
-  return { error: null, deletedIds };
+
+  const stillPresent = (survivors ?? []).map((row: { id: string }) => row.id);
+  if (stillPresent.length === 0) {
+    // (a) Everything asked for is gone. That is the requested end state, so
+    // it is a success — and the caller is told which ids to drop from the
+    // list, including the ones that were already gone.
+    return { error: null, deletedIds: ids, alreadyGone: missing };
+  }
+
+  // (b) Genuinely refused.
+  return {
+    error:
+      deletedIds.length === 0
+        ? `The delete was refused — ${stillPresent.length === 1 ? "the document is" : `${stillPresent.length} documents are`} still there. Reload and try again.`
+        : `Only ${deletedIds.length} of ${ids.length} were deleted; ${stillPresent.length} were refused and are still there.`,
+    deletedIds,
+  };
 }
 
 /** One FILE HISTORY row as the document sheet's rail reads it. */

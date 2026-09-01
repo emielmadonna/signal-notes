@@ -356,6 +356,26 @@ export function useWorkspaceData(): WorkspaceData {
   // Reset to loading HERE, in the handler, then re-run the effect. Same
   // observable behaviour as before (retry shows both sections as loading),
   // without mutating state during the effect body.
+  // Revalidate when the tab is looked at again. Without this the workspace
+  // was fetched exactly once per mount and never again: no polling, no focus
+  // refetch, no revalidation. A tab left open showed tiles for documents that
+  // had since been deleted anywhere else, and the only way to discover it was
+  // to click one and get a delete "failure" that was really a stale list.
+  // `attempt` re-runs the fetch effect WITHOUT flipping the sections back to
+  // loading, so this is a silent background refresh, not a flash of skeleton.
+  useEffect(() => {
+    const revalidate = () => setAttempt((n) => n + 1);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") revalidate();
+    };
+    window.addEventListener("focus", revalidate);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", revalidate);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
   const retry = useCallback(() => {
     setBriefings(loadingSection());
     setDocuments(loadingSection());
