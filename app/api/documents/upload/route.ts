@@ -16,16 +16,7 @@
 //     500 at the insert (catch #23).
 import { NextResponse } from "next/server";
 import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
-// pdf.js resolves its worker with a runtime dynamic import that a bundled
-// server route cannot satisfy ("Cannot find module …/pdf.worker.mjs"). The
-// documented escape hatch is the main-thread global: when
-// globalThis.pdfjsWorker is set, pdf.js uses it and never dynamic-imports
-// (see PDFWorker._setupFakeWorkerGlobal in pdfjs-dist). Importing the worker
-// statically lets the bundler carry it; same pinned version as pdf-parse's
-// own pdfjs, so the api/worker version check always matches.
-// @ts-expect-error -- pdf.worker.mjs ships no type declarations
-import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
+import { PdfEngineError, loadPdfEngine } from "@/lib/ingest/pdf-engine";
 import { createClient } from "@/lib/supabase/server";
 import { resolveOrgId } from "@/lib/org";
 import { internalError } from "@/lib/errors";
@@ -40,8 +31,6 @@ import {
 } from "@/lib/ingest/file-types";
 import { extractReadableText } from "@/lib/html/readable-text";
 import { sanitizeDocumentText, sanitizeLine } from "@/lib/ingest/sanitize";
-
-(globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = pdfjsWorker;
 
 export const runtime = "nodejs";
 
@@ -63,6 +52,10 @@ function jsonError(status: number, error: string, headers?: HeadersInit) {
 // ---------------------------------------------------------------------------
 
 async function extractPdf(bytes: Uint8Array): Promise<string> {
+  // Loaded lazily (lib/ingest/pdf-engine.ts): pdfjs's module evaluation needs
+  // DOMMatrix, and importing it statically meant a platform without one
+  // crashed EVERY upload at function load — the all-formats empty-body 500.
+  const { PDFParse } = await loadPdfEngine();
   const parser = new PDFParse({ data: bytes });
   try {
     const result = await parser.getText();
@@ -252,8 +245,20 @@ export async function POST(request: Request) {
     extracted = await extract(type, bytes);
   } catch (cause) {
     // Server log keeps the real parser error for operators; the client gets
-    // the human version.
+    // the human version. An engine that failed to LOAD is our fault, never
+    // the file's — saying "corrupted" there would blame the user for a
+    // deployment problem.
     console.error(`extraction failed for ${file.name} (${type.label}):`, cause);
+    if (cause instanceof PdfEngineError) {
+      return jsonError(
+        500,
+        internalError(
+          "Reading PDFs is unavailable right now — the file is fine, and nothing was added. Try again shortly.",
+          "upload pdf engine load failed",
+          cause
+        )
+      );
+    }
     return jsonError(
       422,
       `We couldn't read “${file.name}” as a ${type.label} file. It may be corrupted or password-protected.`
