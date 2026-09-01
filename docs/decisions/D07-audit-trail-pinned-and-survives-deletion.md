@@ -24,7 +24,7 @@ it matters most.
   identity — migration line 119 + 150-154), #15 (cascade rules directly
   contradicted the append-only comment — lines 128/132 vs 147-149). Both caught
   BEFORE the migration was applied.
-- Proof: two-org probe 24/24 (`r1-probe-20260901-042430.txt`); R4 verified paste
+- Proof: two-org probe 24/24 (`r1-probe-final-24checks.txt`); R4 verified paste
   `r4-migration-0002-verified-20260901.txt` (audit_events 9 cols incl.
   actor_user_id). Honest limit (ASSUMED): a deleted user's rows become
   identity-indistinguishable from SYSTEM (display text survives); the

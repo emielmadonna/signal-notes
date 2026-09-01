@@ -132,8 +132,9 @@ specs without asserting unobserved results, builders don't add them.
   artifact surfaced the real reason: the scripts' env loader hard-requires a
   .env.local file and dies on a clean checkout — even with every needed
   variable already present in the environment. Evidence:
-  r1-probe-20260901-101617.txt ("No .env.local found ... Run this from the
-  repo root."), GitHub runs 33495059559 / 33496288128.
+  the downloaded CI evidence artifact showed "No .env.local found ... Run this
+  from the repo root." (a transient CI-runner file, not a committed artifact);
+  GitHub runs 33495059559 / 33496288128.
 - FIX + SYSTEM CHANGE: loader treats .env.local as an optional fallback and
   fatals only when a required variable is missing from BOTH sources; CI now
   uploads evidence artifacts on failure so no gate can fail unreadably again.
@@ -268,3 +269,26 @@ specs without asserting unobserved results, builders don't add them.
   rollback is the correct reading. Standing rule: a dead-pointer sweep
   (grep evidence filenames, test -f each) runs before any submission is called
   done — no claim may cite a file that doesn't exist.
+
+## Catch #21 — 2026-09-01 (Mock-Wren round 2, verification of round-1 fixes)
+- CLAIM (mine, dispatcher, in the stream at 11:18): "Zero dead pointers now."
+- VICTIM: the submission's credibility — a freshly-made "zero dead pointers"
+  promise that was itself false, because my dead-pointer sweep regex only
+  matched full "shiplog/evidence/..." paths and missed a BARE-filename
+  citation in decision card D07 (r1-probe-20260901-042430.txt), and I never
+  re-ran the sweep over the decision cards after claiming it.
+- THE CATCH: Mock-Wren round 2 re-ran the dead-pointer attack it had promised,
+  test -f'd every cited file across the D-cards, and found D07 still 404'd —
+  the exact class round 1 flagged, now contradicting my own promise. It also
+  surfaced that the gitignore made ALL timestamped probe/constitution files
+  untracked, so several "025459" citations were dead for a fresh clone, and
+  that the citation check proves presence not support (an un-listed ASSUMED
+  gap). Transcript: deliverables/MOCK-WREN-ROUND-2.md.
+- FIX + SYSTEM CHANGE: every evidence citation across SHIPLOG + all cards +
+  all decisions + Part B/C repointed to a COMMITTED file and verified with a
+  git-ls-files check (not just test -f) — "✓ every evidence file cited in the
+  index docs is committed". The sweep now checks git-tracking, catches bare
+  filenames, and is documented as a pre-submission gate. The citation
+  presence-vs-support limit is now on the ASSUMED list. Lesson: a verification
+  claim ("zero X") must itself be verified by the tool, not asserted — the
+  same standard the whole build runs on, applied to my own promise.

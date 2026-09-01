@@ -153,6 +153,13 @@ All Signal Notes application code, schema, and migrations: after "go".
   live run each.
 - PDF page markers: pdf-parse leaves "-- N of M --" markers in extracted
   bodies; harmless to storage, but a briefing could theoretically quote one.
+- CITATION VERIFICATION proves PRESENCE, not SUPPORT: each stored citation quote
+  is confirmed to be a real substring of its named source document (so no quote
+  is fabricated), but the check does not prove the quote actually supports the
+  sentence it's attached to, and a very short quote can match trivially. The
+  glass box guarantees "this text is really in that document," not "this is the
+  right evidence for this claim" — that remains human judgment (which is what
+  the feedback seam is for). Flagged by Mock-Wren round 2.
 
 ---
 

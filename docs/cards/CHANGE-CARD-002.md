@@ -20,7 +20,7 @@ PROOF OF DONE:
   - [PASS] Committed 3b87d55 at 02:53 → applied 02:54 → verified: tracking row
     + all 41 columns live (shiplog/evidence/r4-migration-0001-verified-*.txt)
   - [PASS] Two-org probe 16/16, incl. composite-FK rejections code 23503
-    (shiplog/evidence/r1-probe-20260901-025459.txt)
+    (shiplog/evidence/r1-probe-final-24checks.txt)
   - [PASS] Ghost-migration gate observed failing pre-apply and passing
     post-apply (both verifier reports on file)
   - [PASS] Full constitution green 02:54 (constitution-20260901-025459.txt)

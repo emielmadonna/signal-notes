@@ -23,7 +23,7 @@ integrity of parent/child org agreement is enforced in the schema, below RLS.
   INSERT policies checked only the row's own `org_id`) and #6 (the first probe
   only touched the documents table, so it would not have caught #5).
 - Proof: two-org probe 16/16, including cross-org composite-FK insert attempts
-  rejected with Postgres code 23503 — `shiplog/evidence/r1-probe-20260901-025459.txt`.
+  rejected with Postgres code 23503 — `shiplog/evidence/r1-probe-final-24checks.txt`.
   Extended to 24/24 after migration 0002 —
   `shiplog/evidence/r1-probe-final-24checks.txt`. Runs in CI on every push.
 

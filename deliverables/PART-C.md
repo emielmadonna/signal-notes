@@ -107,7 +107,7 @@ gate is that I've watched it both catch and clear:
 - It **cleared** once the migration truly ran:
   `shiplog/evidence/constitution-20260901-025459.txt` —
   `PASS R4 migration 20260901000001 applied (tracking row present)`; the latest
-  run (`constitution-20260901-064228.txt`) shows PASS for both migrations 0001
+  run (`constitution-20260901-042448.txt`) shows PASS for both migrations 0001
   and 0002.
 
 This class was exercised for real beyond that one run. **Catch #4** is the same
