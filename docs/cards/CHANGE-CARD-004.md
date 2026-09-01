@@ -19,8 +19,9 @@ skipping live checks locally (the pg-based helper keeps them runnable here).
 PROOF OF DONE:
   - [PASS] Full constitution green locally with live DB checks 02:54
   - [PASS] Pin check proven: verifier passes with matching ref
-  - [PENDING] First CI run on GitHub — triggered by this branch push; result
-    to be pasted here when the run completes.
+  - [PASS] CI on GitHub: run 33494862048 FAILED (typecheck — a real gap, now
+    catch #10: generated route types absent on clean checkouts), fix landed,
+    run 33495059559 SUCCESS in 55s. The gate failed honestly, then passed.
 AUDITOR: reviewed as dispatcher-harness work across both audit rounds (no
 findings raised against it); the auditor independently exercised the verifier
 in every review.
