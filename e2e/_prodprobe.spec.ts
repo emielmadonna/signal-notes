@@ -1,5 +1,16 @@
+// Deployment probe — run BY HAND against a deployed target:
+//   E2E_BASE_URL=https://… npx playwright test e2e/_prodprobe.spec.ts
+// It writes junk documents through the real route (that is the point), so it
+// only runs when a target is named, never in the ordinary suite/CI sweep, and
+// it deletes what it wrote afterwards.
+import { Client } from "pg";
 import { test } from "@playwright/test";
-import { signIn, USERS } from "./helpers";
+import { loadEnv, signIn, USERS } from "./helpers";
+
+test.skip(
+  !process.env.E2E_BASE_URL,
+  "Probe of a DEPLOYED target only: set E2E_BASE_URL to run it."
+);
 
 const utf8 = (s: string) => Buffer.from(s, "utf8");
 const NUL = Buffer.from([0x00]);
@@ -30,5 +41,24 @@ test("prod probe", async ({ page }) => {
     console.log(
       `PROBE ${res.status()} | ${name} | ct=${ct} | len=${text.length} | ${text.slice(0, 240).replace(/\n/g, " ")}`
     );
+  }
+});
+
+// Leave the org as we found it (same pattern as p6-ingestion's afterAll).
+test.afterAll(async () => {
+  loadEnv();
+  const url = process.env.DATABASE_URL;
+  if (!url) return;
+  const client = new Client({
+    connectionString: url,
+    ssl: { rejectUnauthorized: false },
+  });
+  await client.connect();
+  try {
+    await client.query("delete from public.documents where title like $1", [
+      "PRODPROBE %",
+    ]);
+  } finally {
+    await client.end();
   }
 });
