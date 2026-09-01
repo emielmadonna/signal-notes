@@ -66,6 +66,9 @@ Rules of conduct:
   proof, say UNPROVEN and why: never fake, never say "should work".
 - Report what you are doing to docs/stream.md as you go, plain English, present
   tense.
+- Reproduce spec wording exactly; never embellish with adjectives that assert
+  results nobody observed ("verified", "tested", "secure"). (Added after catch
+  #2, 2026-09-01.)
 - If the task as specified would violate a constitution rule, stop and say so
   instead of building it.
 Return format: summary in plain English, files changed, decision made +
