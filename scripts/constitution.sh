@@ -65,6 +65,20 @@ else
   say "PASS" "R5 prompts only in lib/prompts/"
 fi
 
+# R5b: model-facing instruction strings hiding in the AI engine / API handlers
+# instead of lib/prompts/. The R5 grep above only knows a few fixed phrases;
+# this catches second-person imperatives typical of prompts (added after catch
+# #18, where three such strings sat unversioned in lib/ai/). WARN, not FAIL:
+# the auditor confirms each hit is a genuine prompt (move it) or a protocol
+# token / error message (leave it).
+R5B=$(grep -rnE '"[^"]*(you may|you just|you wrote|resubmit|call [a-z_]+ with|do not (read|include)|only read|source set)[^"]*"' lib/ai app/api 2>/dev/null || true)
+if [ -n "$R5B" ]; then
+  say "WARN" "R5b prompt-shaped strings in lib/ai or app/api: auditor must confirm each is a token/error, not an unversioned prompt"
+  echo "$R5B" | sed 's/^/       /' | tee -a "$REPORT"
+else
+  say "PASS" "R5b no prompt-shaped instruction strings outside lib/prompts/"
+fi
+
 # KEY LEAK: service-role key must never be client-reachable
 grep_absent "KEY no SERVICE_ROLE in app code" 'SERVICE_ROLE'
 if grep -rn 'NEXT_PUBLIC_[A-Z_]*SERVICE' .env* 2>/dev/null | tee -a "$REPORT"; then

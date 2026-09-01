@@ -175,11 +175,23 @@ function WorkspaceInner({
   const openDocument = (id: string) => router.push(`/documents/${id}`);
   // TODO(card-008): /documents/new — the add-document sheet route.
   const openAddDocument = () => router.push("/documents/new");
-  // TODO(P4): /briefings/[id] — the briefing/generation sheet route (all
-  // three states land there; the live view decides what to show).
-  const openBriefing = (b: WorkspaceBriefing) => router.push(`/briefings/${b.id}`);
-  // TODO(composer card): /compose — the new-briefing composer route.
-  const openCompose = () => router.push("/compose");
+  // card-011 wiring: a generating OR failed briefing opens the live
+  // GENERATION surface (which resumes via the events endpoint); a complete
+  // briefing opens the reading view (card-012 — navigating there is real
+  // behavior today, the not-found sheet answers until that route ships).
+  const openBriefing = (b: WorkspaceBriefing) =>
+    router.push(
+      b.status === "complete"
+        ? `/briefings/${b.id}`
+        : `/briefings/${b.id}/generating`
+    );
+  // card-011 wiring: the composer route, carrying the current selection the
+  // same cross-route way the document sheet hands off ?use= (the workspace's
+  // SelectionProvider is unmounted while /compose is open).
+  const openCompose = () => {
+    const ids = items.map((item) => item.id);
+    router.push(ids.length ? `/compose?docs=${ids.join(",")}` : "/compose");
+  };
 
   // --- card-009: document delete from the selection bar. The canvas DELETE
   // sheet confirms; Delete goes "Deleting…" (R10), the { error } is surfaced

@@ -216,3 +216,34 @@ specs without asserting unobserved results, builders don't add them.
   open the add sheet, both stale "arrives in P3" tooltips corrected. Rule for
   the phase: when a feature lands, sweep its own empty/disabled states in the
   same phase — a shipped feature behind a dead button is not done.
+
+## Catch #18 — 2026-09-01 05:38 (P4 engine, REJECTED)
+- CLAIM: lib/prompts/briefing.ts header: "Every word the model reads lives
+  here and NOWHERE ELSE." Verifier R5: PASS.
+- VICTIM: the operations-review surface rule 5 protects — three model-facing
+  instruction strings ("Now call submit_briefing…", the out-of-set refusal, the
+  "resubmit with a non-empty title…" correction) were written inline in
+  lib/ai/anthropic.ts, unversioned, invisible to review. The compliance claim
+  in the prompt file's own header was false.
+- THE CATCH: the auditor read the engine line by line and found the strings the
+  R5 grep heuristic ('you are a|system prompt|<instructions') structurally
+  cannot see. Evidence: anthropic.ts lines 261-265, 289, 325.
+- FIX + SYSTEM CHANGE: the three strings move to named, versioned constants in
+  lib/prompts/briefing.ts. The verifier gains an R5b WARN flagging
+  second-person/imperative model-directive strings in lib/ai and app/api so
+  this class can't hide behind a green R5 again.
+
+## Catch #19 — 2026-09-01 05:50 (P4 engine, builder self-catch during re-test)
+- CLAIM: (implicit) the generation loop is robust across runs.
+- VICTIM: ~1 in 6 real generations — the model service returned a 400 ("text
+  content blocks must be non-empty") when the engine echoed an occasional
+  empty streamed text block back into the tool-continuation turn. The failure
+  path handled it correctly (status failed, partial kept), but a flaky 1-in-6
+  failure on the product's core action is not acceptable.
+- THE CATCH: builder-10, re-testing after the rule-5 move, hit the 400,
+  refused to wave it off as transient, and reproduced it deterministically
+  with a diagnostic harness until it found the empty-block echo. Evidence: 7
+  consecutive clean runs after the one-line guard.
+- FIX + SYSTEM CHANGE: empty text blocks are dropped before the assistant turn
+  is echoed back into the tool loop (thinking + tool_use order preserved).
+  Bug pre-dated the rule-5 change (that move was byte-identical).
