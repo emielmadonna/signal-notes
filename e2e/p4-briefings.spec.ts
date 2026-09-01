@@ -53,3 +53,32 @@ test("resume view: the existing complete briefing replays its log", async ({ pag
   await expect(page.getByText(/COMPLETE/i).first()).toBeVisible({ timeout: 30_000 });
   await evidence(page, "p4-live", "generation-resumed");
 });
+
+test("reading view: citations tooltip, grounding chips, feedback persists, log + audit", async ({ page }) => {
+  const id = "345eef7d-ace6-486e-ba49-2d38a4a7f37a";
+  await signIn(page, USERS.ana.email);
+  await page.goto(`/briefings/${id}`);
+  // real title + grounded-in row
+  await expect(page.getByRole("heading", { name: /Three Conversations, One Pattern/i })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/GROUNDED IN/i)).toBeVisible();
+  await evidence(page, "p4-live", "reading-view");
+  // citation tooltip: hover the first superscript marker → real quote appears
+  const body = page.getByRole("dialog");
+  await body.getByText("1", { exact: true }).first().hover({ force: true });
+  await expect(page.getByText(/We hired athletes and gave them no plays\./)).toBeVisible({ timeout: 10_000 });
+  await evidence(page, "p4-live", "citation-tooltip");
+  // feedback: rate useful, expect the rated line, reload, expect it persists
+  await page.getByRole("button", { name: /Useful/i }).first().click();
+  await expect(page.getByText(/YOU RATED THIS USEFUL/i)).toBeVisible({ timeout: 15_000 });
+  await evidence(page, "p4-live", "feedback-rated");
+  // let the async upsert settle before reload (a real user doesn't reload in <1s),
+  // then prove it persisted server-side by reload — rule 7.
+  await page.waitForTimeout(2500);
+  await page.reload();
+  await expect(page.getByText(/YOU RATED THIS USEFUL/i)).toBeVisible({ timeout: 20_000 });
+  // audit trail toggle shows the append-only table
+  await page.getByRole("button", { name: /Audit trail/i }).click();
+  await expect(page.getByText(/APPEND-ONLY/i)).toBeVisible();
+  await expect(page.getByText(/RUN STARTED/i).first()).toBeVisible();
+  await evidence(page, "p4-live", "audit-trail");
+});
