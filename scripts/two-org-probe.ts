@@ -36,7 +36,15 @@
 //
 // Setup for (g)-(k): each user finds or creates one briefing in their own org
 // (title 'probe briefing', status 'generating', model 'probe') through their
-// own session — reused across runs so repeated probes leave no junk behind.
+// own session. Cleanup: after all checks have run (pass or fail, via a
+// finally block), each session DELETES its own probe briefing again, so no
+// perpetual GENERATING card is left behind in a real workspace — which also
+// live-exercises migration 0002's org-scoped briefings delete policy on every
+// probe run. The cleanup is reported in plain English but is NOT a counted
+// check, and a failed cleanup never changes the exit code. The probe's own
+// audit line (written in (k) when the org's trail was empty) survives the
+// deletion with its briefing link blanked — by design: the trail outlives
+// its subjects.
 //
 // Prints one plain-English PASS/FAIL line per check and exits non-zero if any
 // expectation fails.
@@ -194,9 +202,9 @@ async function openSession(label: string, email: string): Promise<Session> {
 
 /**
  * Setup for checks (g)-(k): each user needs one briefing in their OWN org.
- * Idempotent: the verifier runs this probe before every merge and deploy, so
- * an existing 'probe briefing' is reused instead of piling up junk rows the
- * demo orgs could never delete.
+ * Normally created fresh (cleanupProbeBriefing deletes it at the end of every
+ * run); an existing 'probe briefing' is still reused first, so a run whose
+ * cleanup failed never piles up duplicates.
  */
 async function createProbeBriefing(session: Session): Promise<void> {
   const existing = await session.client
@@ -490,6 +498,44 @@ async function probeUser(me: Session, other: Session): Promise<void> {
   );
 }
 
+// --- phase 3: cleanup --------------------------------------------------------
+
+/**
+ * Deletes the session's own probe briefing so no perpetual GENERATING card is
+ * left behind in a real workspace. Runs after all checks, pass or fail (the
+ * finally block in main). This also live-exercises migration 0002's
+ * org-scoped briefings delete policy on every probe run. Reported in plain
+ * English but NOT a counted check; a failure prints a warning and never
+ * changes the exit code. The probe's own audit line, if (k) wrote one,
+ * survives the deletion with its briefing link blanked — by design.
+ */
+async function cleanupProbeBriefing(session: Session): Promise<void> {
+  if (session.probeBriefingId === null) {
+    return;
+  }
+  const deleted = await session.client
+    .from("briefings")
+    .delete()
+    .eq("id", session.probeBriefingId)
+    .select("id");
+  if (deleted.error) {
+    console.log(
+      `CLEANUP WARNING: ${session.label} could not delete their own probe briefing (${deleted.error.message}). A 'probe briefing' card may linger in their workspace; the next probe run will reuse and retry it. This does not affect the probe result.`
+    );
+    return;
+  }
+  const deletedRows = deleted.data ? deleted.data.length : 0;
+  if (deletedRows === 1) {
+    console.log(
+      `CLEANUP: ${session.label} deleted their own probe briefing — the workspace is left as it was found, and migration 0002's briefings delete policy just worked live.`
+    );
+  } else {
+    console.log(
+      `CLEANUP WARNING: ${session.label}'s probe-briefing delete touched ${deletedRows} row(s) instead of 1. A 'probe briefing' card may linger in their workspace; the next probe run will reuse and retry it. This does not affect the probe result.`
+    );
+  }
+}
+
 // --- main --------------------------------------------------------------------
 
 async function main(): Promise<void> {
@@ -505,8 +551,15 @@ async function main(): Promise<void> {
   await createProbeBriefing(ana);
   await createProbeBriefing(marta);
 
-  await probeUser(ana, marta);
-  await probeUser(marta, ana);
+  try {
+    await probeUser(ana, marta);
+    await probeUser(marta, ana);
+  } finally {
+    // Cleanup runs whether the checks passed or failed, so a failing probe
+    // never strands a perpetual GENERATING card in a real workspace.
+    await cleanupProbeBriefing(ana);
+    await cleanupProbeBriefing(marta);
+  }
 
   console.log("");
   if (failures > 0) {

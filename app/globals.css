@@ -135,6 +135,10 @@
   /* Additive (builder-5): theme-dependent drop shadows from the canvas. */
   --sn-menu-shadow: 0 26px 46px -22px rgba(0, 0, 0, 0.9); /* quickMenu / accountMenu */
   --sn-selbar-shadow: 0 24px 44px -20px rgba(0, 0, 0, 0.9); /* selBar */
+  /* Additive (builder-7): canvas literals for the populated lists. */
+  --sn-tile-selected-bg: rgba(255, 204, 72, 0.06); /* d.tile selected bg */
+  --sn-card-shadow: 0 2px 5px rgba(0, 0, 0, 0.45); /* b.card resting */
+  --sn-card-hover-shadow: 0 26px 42px -22px rgba(0, 0, 0, 0.85); /* b.card/tray lifted */
 }
 
 [data-theme="light"] {
@@ -177,6 +181,10 @@
   /* Additive (builder-5): theme-dependent drop shadows from the canvas. */
   --sn-menu-shadow: 0 26px 46px -22px rgba(0, 0, 0, 0.35);
   --sn-selbar-shadow: 0 24px 44px -20px rgba(0, 0, 0, 0.3);
+  /* Additive (builder-7): canvas literals for the populated lists. */
+  --sn-tile-selected-bg: rgba(232, 179, 42, 0.12); /* d.tile selected bg */
+  --sn-card-shadow: 0 2px 5px rgba(0, 0, 0, 0.12); /* b.card resting */
+  --sn-card-hover-shadow: 0 26px 42px -22px rgba(0, 0, 0, 0.28); /* b.card/tray lifted */
 }
 
 /* Theme-invariant tokens: file-type colors (icon borders/labels) and

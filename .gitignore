@@ -55,3 +55,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 e2e/.results/
+e2e/fixtures/

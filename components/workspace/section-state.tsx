@@ -40,6 +40,7 @@ export function SectionState({
   count,
   onRetry,
   children,
+  onAdd,
 }: {
   section: "briefings" | "documents";
   state: SectionStateKind;
@@ -47,6 +48,8 @@ export function SectionState({
   onRetry: () => void;
   /** P3's populated content. Absent in P2 → honest placeholder line. */
   children?: ReactNode;
+  /** Empty-state "Add document" CTA → the add-document sheet (shipped P3). */
+  onAdd?: () => void;
 }) {
   if (state === "loading") {
     return section === "briefings" ? (
@@ -87,9 +90,9 @@ export function SectionState({
           title="No briefings yet."
           body="Select documents below and Signal Notes will read only those."
         >
-          {/* The composer arrives in P3; a dead button would be a lie, so
+          {/* The composer arrives in P4; a dead button would be a lie, so
               this one is honestly disabled until then. */}
-          <PrimaryButton type="button" disabled title="The briefing composer arrives in P3">
+          <PrimaryButton type="button" disabled title="The briefing composer arrives in the next phase">
             <SparkIcon size={14} />
             New briefing
           </PrimaryButton>
@@ -131,7 +134,7 @@ export function SectionState({
         >
           Or paste raw text. Briefings can only read what lives here.
         </p>
-        <PrimaryButton type="button" disabled title="The add-document sheet arrives in P3">
+        <PrimaryButton type="button" onClick={onAdd} disabled={!onAdd}>
           <PlusIcon size={14} />
           Add document
         </PrimaryButton>

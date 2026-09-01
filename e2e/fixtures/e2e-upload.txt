@@ -1,0 +1,2 @@
+E2E upload fixture.
+This text file is uploaded by the live sweep to prove the browse/upload path end to end.

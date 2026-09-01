@@ -64,6 +64,8 @@ export function SelectionBar({
   onOpen,
   onRename,
   onDelete,
+  renameTitle,
+  deleteTitle,
   deleting = false,
 }: {
   /** P3 handlers; a missing handler renders its button disabled, honestly. */
@@ -71,6 +73,10 @@ export function SelectionBar({
   onOpen?: () => void;
   onRename?: () => void;
   onDelete?: () => void;
+  /** Tooltip for a (still-)disabled Rename, naming the card that ships it. */
+  renameTitle?: string;
+  /** Tooltip for a (still-)disabled Delete, naming the card that ships it. */
+  deleteTitle?: string;
   /** Working state for the delete action (rule 10), driven by P3. */
   deleting?: boolean;
 }) {
@@ -133,6 +139,7 @@ export function SelectionBar({
         size="sm"
         onClick={onRename}
         disabled={!onRename}
+        title={onRename ? undefined : renameTitle}
       >
         <EditIcon size={13} />
         Rename
@@ -141,6 +148,7 @@ export function SelectionBar({
         type="button"
         onClick={onDelete}
         disabled={!onDelete}
+        title={onDelete ? undefined : deleteTitle}
         working={deleting}
         workingLabel="Deleting…"
       >

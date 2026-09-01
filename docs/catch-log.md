@@ -189,3 +189,30 @@ specs without asserting unobserved results, builders don't add them.
 - FIX + SYSTEM CHANGE: audit rows now survive their subjects — deleting a
   briefing or document blanks the link but keeps the line, org-scoped. The
   comment now tells the truth.
+
+## Catch #16 — 2026-09-01 05:10 (P3, fetch-url route, security)
+- CLAIM: the web-URL ingestion route safely fetches a user-supplied address.
+- VICTIM: the server itself — an authenticated user could aim it at
+  http://169.254.169.254 (cloud metadata) or internal 127.0.0.1/RFC-1918 hosts
+  and read the response back through the stored document (a read-SSRF oracle);
+  redirect:"follow" could also bounce a public URL into a private one.
+- THE CATCH: the auditor read the fetch path and flagged the missing private-
+  address guard, judging severity honestly (low-moderate on Vercel serverless,
+  higher if self-hosted) and recommending the fix rather than only noting it.
+- FIX + SYSTEM CHANGE: an isBlockedHost guard rejects localhost / metadata IP /
+  RFC-1918 / link-local / unique-local / loopback before fetch; redirects are
+  now manual and every hop's host is re-validated (max 4 hops). Verified across
+  16 host cases. DNS-rebinding residual is on the ASSUMED list.
+
+## Catch #17 — 2026-09-01 05:10 (P3 integration, REJECTED)
+- CLAIM: the documents empty state is done.
+- VICTIM: any user with an empty (or freshly emptied) workspace — the "Add
+  document" button sat greyed out with a tooltip "arrives in P3", pointing at a
+  feature that shipped in this very phase. A lying empty state.
+- THE CATCH: the auditor cross-checked the disabled CTA against the routes that
+  shipped this phase and found the button dead while /documents/new was live.
+  Evidence: section-state.tsx line 134.
+- FIX + SYSTEM CHANGE: onAdd threaded into SectionState, the button enabled to
+  open the add sheet, both stale "arrives in P3" tooltips corrected. Rule for
+  the phase: when a feature lands, sweep its own empty/disabled states in the
+  same phase — a shipped feature behind a dead button is not done.

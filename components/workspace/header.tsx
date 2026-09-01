@@ -47,6 +47,8 @@ export function WorkspaceHeader({
   query,
   onQueryChange,
   quickDocs = [],
+  selectionCount,
+  onGenerate,
   signOutAction,
   onAllDocuments,
 }: {
@@ -61,6 +63,12 @@ export function WorkspaceHeader({
   onQueryChange: (value: string) => void;
   /** P3's 4 recent documents; P2 passes the placeholder-empty default. */
   quickDocs?: QuickDoc[];
+  /** TOTAL selection size (canvas countShort / quickGen use sel.length,
+   *  which can exceed the 4 rows shown). Falls back to the quickDocs'
+   *  own selected count when absent. */
+  selectionCount?: number;
+  /** Generate briefing (quick menu footer); enabled at selection ≥ 1. */
+  onGenerate?: () => void;
   /** Server action reusing the existing sign-out logic. */
   signOutAction: () => Promise<void>;
   /** Footer "All documents" link target (scrolls to the section). */
@@ -69,7 +77,8 @@ export function WorkspaceHeader({
   const { theme, toggleTheme } = useTheme();
   const [quickOpen, setQuickOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const selectedCount = quickDocs.filter((d) => d.selected).length;
+  const selectedCount =
+    selectionCount ?? quickDocs.filter((d) => d.selected).length;
 
   const quickMenu: CSSProperties = {
     position: "absolute",
@@ -259,10 +268,13 @@ export function WorkspaceHeader({
               marginTop: 6,
             }}
           >
-            {/* Canvas quickGen at zero selection: soft bg, faint text. */}
+            {/* Canvas quickGen at zero selection: soft bg, faint text.
+                Click → the composer route (TODO: /compose ships with the
+                composer card; the not-found sheet answers until then). */}
             <button
               type="button"
-              disabled={selectedCount === 0}
+              disabled={selectedCount === 0 || !onGenerate}
+              onClick={onGenerate}
               style={{
                 height: 30,
                 padding: "0 15px",
