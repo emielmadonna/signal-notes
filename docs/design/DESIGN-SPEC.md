@@ -56,7 +56,8 @@ One authenticated screen (the workspace) + sign-in. Desktop 1440, holds to
 theme toggle · "New briefing" (primary, hover opens QUICK MENU: 4 recent docs
 with selection toggles, count, Generate briefing, All documents) · account
 button (avatar initials, name, org in mono; menu: SIGNED IN AS email,
-WORKSPACE list with active org check + inert "Switch account…" row, Sign out).
+WORKSPACE list with the active org check, then Sign out. NO "Switch account…"
+row — Emiel cut it 2026-09-01: one org per user, nothing to switch).
 
 Main scroll: BRIEFINGS section (h2 serif + mono sub "4 · ONE RUNNING") then
 DOCUMENTS section (mono sub "5 FILES", right-aligned "DRAG FILES ANYWHERE
