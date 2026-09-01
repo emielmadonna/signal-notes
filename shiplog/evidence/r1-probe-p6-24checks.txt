@@ -1,0 +1,33 @@
+Two-org probe: proving tenant isolation from the outside (constitution R1).
+
+--- Probing as Admin (Northwind Advisory) <admin@admin.admin> against Admin2 (Meridian Group)'s data ---
+PASS: Admin (Northwind Advisory) can read their own organization's documents (6 rows).
+PASS: Admin (Northwind Advisory) selecting the other organization's documents gets exactly 0 rows (got 0).
+PASS: Admin (Northwind Advisory) inserting a document into the other organization is rejected (new row violates row-level security policy for table "documents").
+PASS: Admin (Northwind Advisory) updating the other organization's document affected 0 rows.
+PASS: Admin (Northwind Advisory) selecting the other organization's briefings gets exactly 0 rows (got 0).
+PASS: Admin (Northwind Advisory) inserting a briefing into the other organization is rejected (new row violates row-level security policy for table "briefings").
+PASS: Admin (Northwind Advisory) linking their own briefing to the other organization's document is rejected by the composite foreign key (code 23503: insert or update on table "briefing_sources" violates foreign key constraint "briefing_sources_document_id_org_id_fkey").
+PASS: Admin (Northwind Advisory) writing a log line against the other organization's briefing is rejected by the composite foreign key (code 23503: insert or update on table "generation_events" violates foreign key constraint "generation_events_briefing_id_org_id_fkey").
+PASS: Admin (Northwind Advisory) attaching a margin note to the other organization's briefing is rejected by the composite foreign key (code 23503: insert or update on table "briefing_notes" violates foreign key constraint "briefing_notes_briefing_id_org_id_fkey").
+PASS: Admin (Northwind Advisory) writing an audit line against the other organization's briefing is rejected by the composite foreign key (code 23503: insert or update on table "audit_events" violates foreign key constraint "audit_events_briefing_id_org_id_fkey").
+PASS: Admin (Northwind Advisory) selecting the other organization's audit trail gets exactly 0 rows (got 0; own org verified non-empty first).
+PASS: Admin (Northwind Advisory) selecting the other organization's margin notes gets exactly 0 rows (got 0).
+
+--- Probing as Admin2 (Meridian Group) <admin2@admin.admin> against Admin (Northwind Advisory)'s data ---
+PASS: Admin2 (Meridian Group) can read their own organization's documents (6 rows).
+PASS: Admin2 (Meridian Group) selecting the other organization's documents gets exactly 0 rows (got 0).
+PASS: Admin2 (Meridian Group) inserting a document into the other organization is rejected (new row violates row-level security policy for table "documents").
+PASS: Admin2 (Meridian Group) updating the other organization's document affected 0 rows.
+PASS: Admin2 (Meridian Group) selecting the other organization's briefings gets exactly 0 rows (got 0).
+PASS: Admin2 (Meridian Group) inserting a briefing into the other organization is rejected (new row violates row-level security policy for table "briefings").
+PASS: Admin2 (Meridian Group) linking their own briefing to the other organization's document is rejected by the composite foreign key (code 23503: insert or update on table "briefing_sources" violates foreign key constraint "briefing_sources_document_id_org_id_fkey").
+PASS: Admin2 (Meridian Group) writing a log line against the other organization's briefing is rejected by the composite foreign key (code 23503: insert or update on table "generation_events" violates foreign key constraint "generation_events_briefing_id_org_id_fkey").
+PASS: Admin2 (Meridian Group) attaching a margin note to the other organization's briefing is rejected by the composite foreign key (code 23503: insert or update on table "briefing_notes" violates foreign key constraint "briefing_notes_briefing_id_org_id_fkey").
+PASS: Admin2 (Meridian Group) writing an audit line against the other organization's briefing is rejected by the composite foreign key (code 23503: insert or update on table "audit_events" violates foreign key constraint "audit_events_briefing_id_org_id_fkey").
+PASS: Admin2 (Meridian Group) selecting the other organization's audit trail gets exactly 0 rows (got 0; own org verified non-empty first).
+PASS: Admin2 (Meridian Group) selecting the other organization's margin notes gets exactly 0 rows (got 0).
+CLEANUP: Admin (Northwind Advisory) deleted their own probe briefing — the workspace is left as it was found, and migration 0002's briefings delete policy just worked live.
+CLEANUP: Admin2 (Meridian Group) deleted their own probe briefing — the workspace is left as it was found, and migration 0002's briefings delete policy just worked live.
+
+RESULT: PASS — all 24 checks passed (12 per user, run as both users). Proven: documents (cross-org select returns 0 rows; cross-org insert rejected; cross-org update touches 0 rows), briefings (cross-org select returns 0 rows; cross-org insert rejected), briefing_sources (insert linking an own-org briefing to the other org's document rejected by the composite FK), generation_events (insert against the other org's briefing id rejected by the composite FK), briefing_notes (margin note against the other org's briefing id rejected by the composite FK; cross-org select returns 0 rows), audit_events (insert against the other org's briefing id rejected by the composite FK; cross-org select returns 0 rows with the reader's own org first proven non-empty, and the own-org insert happy path with actor_user_id = self exercised as that setup). Not exercised by this probe: organizations, org_members, briefing_feedback, audit_events' document-side composite reference (its briefing-side twin is), and the actor_user_id forgery rejection (the policy requires actor_user_id = the signed-in user, but no check attempts another value).

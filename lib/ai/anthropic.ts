@@ -30,6 +30,7 @@ import {
   NOTE_THEME_ACK,
   SUBMIT_BRIEFING_ACK,
   UNKNOWN_TOOL_RESULT,
+  truncationNotice,
   type PromptDocument,
 } from "@/lib/prompts/briefing";
 import type { AllowedModel, BriefingSections } from "@/lib/briefing-types";
@@ -81,8 +82,49 @@ export class NoBriefingSubmittedError extends Error {
 }
 
 const MAX_TURNS = 16; // read N docs + note themes + write + submit, with headroom
+
+/**
+ * How many times we may ask a model that stopped without submitting to call
+ * submit_briefing.
+ *
+ * The code below used to say "nudge it once" in a comment and then nudge on
+ * EVERY non-tool_use turn, all the way to MAX_TURNS. Each pass re-sends the
+ * entire accumulated history — every thinking block, every full document body
+ * returned by read_document, and any prose the model has already written — so
+ * a model that keeps writing the briefing as TEXT instead of calling the tool
+ * grows the request quadratically. The terminal state is not a graceful stop
+ * but a hard 400 from the model service (observed: a run that reached turn 13
+ * and died with "the model service returned an error (400)" after streaming a
+ * complete draft).
+ *
+ * Two attempts is enough to correct a model that simply forgot the tool. Past
+ * that we stop and fail honestly, which preserves the partial draft and the
+ * log instead of burning turns and tokens on a request that is going to be
+ * rejected anyway.
+ */
+const MAX_SUBMIT_NUDGES = 2;
 const MAX_TOKENS = 16000;
 const CHUNK_THRESHOLD = 180; // flush streamed text/thinking in ~180-char chunks
+
+/**
+ * The most text one read_document result may carry. Uploads are capped at
+ * 20 MB, and a 20 MB .txt is ~5M tokens — far past any context window — so
+ * without this an entirely legitimate upload turned every generation into an
+ * opaque "the model service returned an error". ~240k characters is roughly
+ * 60k tokens: comfortably inside the window, with room for the other sources
+ * and the model's own output. Past the cap the model is TOLD it is reading a
+ * prefix (truncationNotice) rather than being silently misled.
+ */
+const MAX_DOCUMENT_CHARS = 240_000;
+
+/** doc.body, trimmed to the cap and labelled honestly when it was trimmed. */
+function documentPayload(body: string): string {
+  if (body.length <= MAX_DOCUMENT_CHARS) return body;
+  return (
+    body.slice(0, MAX_DOCUMENT_CHARS) +
+    truncationNotice(MAX_DOCUMENT_CHARS, body.length)
+  );
+}
 
 // Thinking config is model-dependent: the current models take adaptive
 // thinking (summarized so the reader sees real reasoning); Haiku 4.5 predates
@@ -205,6 +247,7 @@ export async function streamBriefing(params: {
   ];
 
   let submitted: RawBriefingResult | null = null;
+  let nudges = 0;
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const stream = client.messages.stream({
@@ -269,9 +312,12 @@ export async function streamBriefing(params: {
     });
 
     if (final.stop_reason !== "tool_use") {
-      // The model ended its turn without a tool call. If it never submitted,
-      // nudge it once toward submit_briefing; otherwise we are done.
+      // The model ended its turn without a tool call. If it already submitted,
+      // we are done. Otherwise nudge it toward submit_briefing — but only
+      // MAX_SUBMIT_NUDGES times, because every extra pass re-sends the whole
+      // conversation and walks the request toward the context limit.
       if (submitted !== null) break;
+      if (++nudges > MAX_SUBMIT_NUDGES) break; // -> NoBriefingSubmittedError
       messages.push({ role: "user", content: SUBMIT_NUDGE });
       continue;
     }
@@ -299,13 +345,17 @@ export async function streamBriefing(params: {
           });
           continue;
         }
+        const payload = documentPayload(doc.body);
+        const truncated = payload.length !== doc.body.length;
         await handlers.onToolCall(
-          `Reading "${doc.title}" — ${wordCount(doc.body)} words`
+          truncated
+            ? `Reading "${doc.title}" — first ${wordCount(payload)} of ${wordCount(doc.body)} words (source too long to read whole)`
+            : `Reading "${doc.title}" — ${wordCount(doc.body)} words`
         );
         toolResults.push({
           type: "tool_result",
           tool_use_id: block.id,
-          content: doc.body,
+          content: payload,
         });
       } else if (block.name === "note_theme") {
         const theme =

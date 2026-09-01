@@ -209,15 +209,34 @@ export async function startGeneration(
     };
   }
 
-  // We do not consume the body: the engine persists every event regardless of
-  // this stream (the generate route's cancel() deliberately keeps the run
-  // alive), and the caller resumes through the events route. Release the
-  // reader so the socket can close on our side.
-  try {
-    void res.body?.cancel();
-  } catch {
-    // Body already settled; the run is unaffected.
-  }
+  // DRAIN the body in the background rather than cancelling it.
+  //
+  // The caller navigates straight to the generation surface and watches the
+  // run through the events route, so nothing here needs these bytes — but the
+  // POST response stream is what holds the serverless invocation OPEN. When we
+  // cancelled it immediately, the platform was free to reclaim the function
+  // mid-run: the briefing stayed 'generating' forever, the events route tailed
+  // a log that never grew until its own deadline, and the user watched a run
+  // that never finished. Draining costs one idle socket for the length of the
+  // run, and is the difference between "you can close this, the run keeps
+  // going" being a promise and being true.
+  //
+  // Fire-and-forget on purpose: this loop has no UI to update, and if it dies
+  // the run is unaffected (the engine persists every event either way), so a
+  // failure is logged rather than reported as a failure to START.
+  void (async () => {
+    try {
+      const reader = res.body?.getReader();
+      if (!reader) return;
+      for (;;) {
+        const { done } = await reader.read();
+        if (done) break;
+      }
+    } catch (cause) {
+      console.warn("generation stream drain ended early:", cause);
+    }
+  })();
+
   return { id };
 }
 

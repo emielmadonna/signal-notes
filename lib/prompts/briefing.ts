@@ -23,7 +23,10 @@
 // were relocated here from lib/ai (catch #18, rule 5: EVERY word the model
 // reads lives in lib/prompts and nowhere else). No change to the grounding
 // instructions themselves.
-export const BRIEFING_PROMPT_VERSION = "briefing-2026-09-01.2";
+// v3 (2026-09-01.3): added TRUNCATION_NOTICE, the marker appended to a
+// read_document result whose document was too long to send whole. It is text
+// the model reads, so rule 5 puts it here rather than in lib/ai.
+export const BRIEFING_PROMPT_VERSION = "briefing-2026-09-01.3";
 
 // ---------------------------------------------------------------------------
 // Protocol messages (model-facing). These are strings the engine feeds back to
@@ -48,6 +51,21 @@ export const RESUBMIT_CORRECTION =
 export const NOTE_THEME_ACK = "Noted.";
 export const SUBMIT_BRIEFING_ACK = "Recorded.";
 export const UNKNOWN_TOOL_RESULT = "Unknown tool.";
+
+/**
+ * Appended to a read_document result that had to be cut short. The model must
+ * know it is looking at a prefix — otherwise it can confidently summarise a
+ * document whose second half it never saw, and neither the reader nor the
+ * citation verifier would notice the difference.
+ */
+export function truncationNotice(sentChars: number, totalChars: number): string {
+  return (
+    `\n\n[Only the first ${sentChars.toLocaleString("en-US")} characters of this ` +
+    `document are shown; it is ${totalChars.toLocaleString("en-US")} characters long. ` +
+    `Base your briefing only on the text above, and say in the briefing that this ` +
+    `source was read in part.]`
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Tool descriptions (model-facing). The engine wires these onto real tools:

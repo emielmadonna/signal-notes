@@ -65,6 +65,18 @@ export function ThemeProvider({
 
   // If localStorage remembers a choice the cookie lost (cookie cleared or
   // expired), re-apply it once on mount and re-seed the cookie.
+  //
+  // This IS a setState in an effect body, and it is the justified case the
+  // rule exists to make rare: localStorage cannot be read while rendering on
+  // the server, so the stored preference genuinely cannot be known until
+  // after mount. Reading it in a lazy useState initializer instead would
+  // produce a hydration mismatch — the server has already painted the cookie
+  // theme. The cost is one extra render, once, only for the users whose
+  // cookie and localStorage disagree.
+  //
+  // The suppression is deliberately scoped to this single call. Everywhere
+  // else in the codebase the rule is enforced (see lib/workspace-data.ts,
+  // where the same pattern was moved into the retry handler instead).
   useEffect(() => {
     let stored: string | null = null;
     try {
@@ -73,6 +85,7 @@ export function ThemeProvider({
       // Unavailable storage means nothing to restore; keep the server theme.
     }
     if ((stored === "dark" || stored === "light") && stored !== initialTheme) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- see the note above this effect
       setThemeState(stored);
       persist(stored);
     }

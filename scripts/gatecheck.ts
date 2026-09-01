@@ -25,13 +25,18 @@ type CheckResult = {
 };
 
 type CardSpec = {
-  card: string;                 // "CHANGE-CARD-014"
+  card: string;                 // "CHANGE-CARD-015"
   rules: string[];              // e.g. ["R2", "R3", "R10"]
-  screenshots?: {               // UI proofs; require a running dev server
-    url: string;                // page to load
-    name: string;               // evidence file stem
-    forceFailure?: string;      // route to force a 500 on before shooting
-  }[];
+  /**
+   * The committed Playwright specs that photograph THIS card's surfaces.
+   * This replaced a `screenshots: [{url, name, forceFailure}]` field whose
+   * handler was a permanent `TODO(P2): drive headless chromium` stub — it
+   * returned UNPROVEN unconditionally, so every UI rule on every card was
+   * unprovable by construction. The e2e suite already drives a real browser
+   * against the real app and writes its PNGs into shiplog/evidence/, so a
+   * card now NAMES the specs that prove it and gatecheck runs them.
+   */
+  e2eSpecs?: string[];
 };
 
 const EVIDENCE_DIR = "shiplog/evidence";
@@ -93,20 +98,60 @@ const checks: Record<string, (spec: CardSpec) => CheckResult> = {
   // R3, R6, R8, R9, R10 need the UI: headless-browser screenshots + recordings.
   // Wired in P2 once components exist; until then every card claiming them gets
   // an honest UNPROVEN and the Builder must attach manual screenshots instead.
-  R3: (spec) => screenshotCheck("R3", "every write's error surfaced (forced-failure shots)", spec),
-  R6: (spec) => screenshotCheck("R6", "grounding panel visible", spec),
-  R8: (spec) => screenshotCheck("R8", "narrated generation, no bare spinner", spec),
-  R9: (spec) => screenshotCheck("R9", "forced 500 renders error state, not empty", spec),
-  R10: (spec) => screenshotCheck("R10", "working buttons + optimistic update", spec),
+  R3: (spec) => browserCheck("R3", "every write's error surfaced (forced-failure shots)", spec),
+  R6: (spec) => browserCheck("R6", "grounding panel visible", spec),
+  R8: (spec) => browserCheck("R8", "narrated generation, no bare spinner", spec),
+  R9: (spec) => browserCheck("R9", "forced 500 renders error state, not empty", spec),
+  R10: (spec) => browserCheck("R10", "working buttons + optimistic update", spec),
+  // The three rules that used to be WARN-only in the verifier and are now a
+  // real, exception-recorded gate (scripts/check-conventions.ts).
+  R3b: () => conventionsCheck("R3b", "every Supabase write checks its { error }"),
+  R3c: () => conventionsCheck("R3c", "no comment-only catch without a recorded backstop"),
+  R5b: () => conventionsCheck("R5b", "no unversioned model-facing strings outside lib/prompts/"),
 };
 
-function screenshotCheck(rule: string, label: string, spec: CardSpec): CheckResult {
-  const shots = spec.screenshots ?? [];
-  if (shots.length === 0)
-    return { rule, label, status: "UNPROVEN", evidence: "no screenshot spec provided; Builder must attach manual evidence" };
-  // TODO(P2): drive headless chromium against the dev server, honoring
-  // forceFailure routes, and save PNGs to shiplog/evidence/.
-  return { rule, label, status: "UNPROVEN", evidence: "headless screenshot capture activates in P2" };
+/** One shared run of the conventions checker, reported per rule. */
+let conventionsRun: { ok: boolean; out: string; file: string } | null = null;
+function conventionsCheck(rule: string, label: string): CheckResult {
+  if (conventionsRun === null) {
+    const r = sh("npx tsx scripts/check-conventions.ts");
+    conventionsRun = { ...r, file: saveEvidence("conventions", r.out) };
+  }
+  const line = conventionsRun.out
+    .split("\n")
+    .find((l) => l.includes(` ${rule}`) || l.startsWith(`FAIL   ${rule}`));
+  const passed = line?.trimStart().startsWith("PASS") ?? false;
+  return { rule, label, status: passed ? "PASS" : "FAIL", evidence: conventionsRun.file };
+}
+
+/**
+ * Runs the Playwright specs a card names. One run is shared across every
+ * browser-backed rule on the card, because the specs are the same either way
+ * and a card claiming four UI rules should not pay for four browser runs.
+ */
+let e2eRun: { ok: boolean; out: string; file: string; specs: string } | null = null;
+function browserCheck(rule: string, label: string, spec: CardSpec): CheckResult {
+  const specs = spec.e2eSpecs ?? [];
+  if (specs.length === 0) {
+    return {
+      rule,
+      label,
+      status: "UNPROVEN",
+      evidence:
+        "the card names no e2eSpecs; add the Playwright spec(s) that photograph this surface, or attach manual evidence for the Auditor to reproduce",
+    };
+  }
+  const key = specs.join(" ");
+  if (e2eRun === null || e2eRun.specs !== key) {
+    const r = sh(`npx playwright test ${specs.map((s) => JSON.stringify(s)).join(" ")}`);
+    e2eRun = { ...r, file: saveEvidence("e2e", r.out), specs: key };
+  }
+  return {
+    rule,
+    label,
+    status: e2eRun.ok ? "PASS" : "FAIL",
+    evidence: `${e2eRun.file} (specs: ${key}; screenshots in shiplog/evidence/)`,
+  };
 }
 
 // ---- main ----

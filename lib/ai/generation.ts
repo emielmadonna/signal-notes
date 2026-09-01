@@ -23,6 +23,8 @@ import {
 } from "./anthropic";
 import { BRIEFING_PROMPT_VERSION } from "@/lib/prompts/briefing";
 import Anthropic from "@anthropic-ai/sdk";
+import { resolveOrgId } from "@/lib/org";
+import { internalError, logInternal } from "@/lib/errors";
 import {
   resolveModel,
   type AllowedModel,
@@ -31,6 +33,38 @@ import {
   type GenerateRequest,
   type StreamMessage,
 } from "@/lib/briefing-types";
+
+// ---------------------------------------------------------------------------
+// Caps. A generation is the most expensive thing a signed-in user can ask for,
+// so the size of the request is bounded here as well as metered by the route.
+// ---------------------------------------------------------------------------
+
+/**
+ * How many documents one briefing may be grounded in. Previously unbounded:
+ * a client could post every document id in the workspace and the engine would
+ * bind them all. Twelve is well past the product's own framing (the composer
+ * is built for a handful of sources) and still leaves the model's context
+ * intact once each source is capped by MAX_DOCUMENT_CHARS in lib/ai/anthropic.
+ */
+export const MAX_SOURCE_DOCUMENTS = 12;
+
+// ---------------------------------------------------------------------------
+// Batched persistence of the activity log.
+//
+// Every activity-log line is still persisted BEFORE it is forwarded to the
+// client — that is what lets a run outlive the browser. What changed is the
+// granularity: emit() used to await one INSERT per ~180-character chunk, so a
+// 6000-word briefing spent 200 serial round-trips (10-15 s of pure database
+// latency) inside the user-visible stream. Lines are now buffered for a few
+// milliseconds and written as ONE multi-row insert, which keeps the ordering
+// and the persist-then-forward guarantee while cutting the round-trips by an
+// order of magnitude.
+// ---------------------------------------------------------------------------
+
+/** Flush once this many lines are waiting… */
+const EVENT_BATCH_MAX = 24;
+/** …or this long after the first one arrives, whichever comes first. */
+const EVENT_BATCH_MS = 120;
 
 // ---------------------------------------------------------------------------
 // Errors distinguishable in the failure path.
@@ -113,35 +147,26 @@ export async function prepareGeneration(
       },
     };
   }
+  if (ids.length > MAX_SOURCE_DOCUMENTS) {
+    return {
+      failure: {
+        status: 400,
+        error: `A briefing can be grounded in at most ${MAX_SOURCE_DOCUMENTS} documents; you selected ${ids.length}. Narrow the selection and try again.`,
+      },
+    };
+  }
 
   const requestedTitle =
     typeof req.title === "string" && req.title.trim() !== ""
       ? req.title.trim()
       : null;
 
-  // The user's org — named column, scoped to their own membership row.
-  const { data: memberships, error: orgError } = await supabase
-    .from("org_members")
-    .select("org_id")
-    .eq("user_id", user.id)
-    .limit(1);
-  if (orgError) {
-    return {
-      failure: {
-        status: 500,
-        error: `We couldn't look up your organization: ${orgError.message}`,
-      },
-    };
+  // The user's org — one shared, deterministically-ordered lookup (lib/org.ts).
+  const org = await resolveOrgId(supabase, user.id);
+  if (org.error) {
+    return { failure: { status: org.error.status, error: org.error.message } };
   }
-  if (!memberships || memberships.length === 0) {
-    return {
-      failure: {
-        status: 403,
-        error: "Your account isn't in an organization yet.",
-      },
-    };
-  }
-  const orgId = memberships[0].org_id as string;
+  const orgId = org.orgId;
 
   // Load the selected documents (named columns, R2). RLS scopes rows to the
   // caller's org, so a cross-org id simply returns nothing — which we treat as
@@ -154,7 +179,11 @@ export async function prepareGeneration(
     return {
       failure: {
         status: 500,
-        error: `We couldn't load the selected documents: ${docError.message}`,
+        error: internalError(
+          "We couldn't load the selected documents.",
+          "generation: loading source documents failed",
+          docError
+        ),
       },
     };
   }
@@ -195,7 +224,11 @@ export async function prepareGeneration(
     return {
       failure: {
         status: 500,
-        error: `Starting the briefing failed: ${briefingError?.message ?? "no row came back"}. Nothing was created.`,
+        error: internalError(
+          "Starting the briefing failed, so nothing was created.",
+          "generation: briefing insert failed",
+          briefingError ?? new Error("no row came back")
+        ),
       },
     };
   }
@@ -219,12 +252,16 @@ export async function prepareGeneration(
       .eq("id", briefingId)
       .select("id");
     const rolledBackOk = !rollbackError && (rolledBack?.length ?? 0) === 1;
+    const reference = logInternal(
+      "generation: binding source documents failed",
+      { sourcesError, rollbackError }
+    );
     return {
       failure: {
         status: 500,
         error: rolledBackOk
-          ? `Binding the source documents failed: ${sourcesError.message}. The briefing was rolled back.`
-          : `Binding the source documents failed: ${sourcesError.message}. The empty briefing could NOT be rolled back${rollbackError ? ` (${rollbackError.message})` : ""} and may still appear — delete it and try again.`,
+          ? `Binding the source documents failed. The briefing was rolled back. (reference ${reference})`
+          : `Binding the source documents failed, and the empty briefing could NOT be rolled back — it may still appear, so delete it and try again. (reference ${reference})`,
       },
     };
   }
@@ -243,7 +280,7 @@ export async function prepareGeneration(
     actor_user_id: user.id,
   });
   if (runAuditError) {
-    console.error(`RUN STARTED audit line failed: ${runAuditError.message}`);
+    logInternal("generation: RUN STARTED audit line failed", runAuditError);
   }
   const { error: boundAuditError } = await supabase.from("audit_events").insert(
     documents.map((d) => ({
@@ -257,7 +294,7 @@ export async function prepareGeneration(
     }))
   );
   if (boundAuditError) {
-    console.error(`SOURCE BOUND audit lines failed: ${boundAuditError.message}`);
+    logInternal("generation: SOURCE BOUND audit lines failed", boundAuditError);
   }
 
   return {
@@ -315,20 +352,34 @@ function renderBodyFromSections(title: string, s: BriefingSections): string {
   return parts.join("\n").trim();
 }
 
+/**
+ * The sentence the reader sees when a run dies. Each branch says what class of
+ * thing went wrong and what to do about it — but the driver's own words are
+ * logged, not echoed. The catch-all used to interpolate `cause.message`
+ * directly, which shipped Postgres constraint and policy names to the browser
+ * on any unanticipated failure.
+ */
 function humanFailure(cause: unknown): string {
   if (cause instanceof NoBriefingSubmittedError) {
     return "the analysis didn't produce a finished briefing. Try again.";
   }
   if (cause instanceof PersistError) {
+    // PersistError messages are composed by us and already reference-only.
     return `a database write failed mid-run (${cause.message}). Try again.`;
   }
   if (cause instanceof Anthropic.APIError) {
-    return `the model service returned an error (${cause.status ?? "network"}). Try again.`;
+    // The status alone is not diagnosable — a 400 from the model service can
+    // be a malformed message array, a context overflow, or a bad parameter,
+    // and they need completely different fixes. The operator gets the whole
+    // error; the reader still gets only the status and a reference.
+    const reference = logInternal(
+      `generation: model service ${cause.status ?? "network"} error`,
+      cause
+    );
+    return `the model service returned an error (${cause.status ?? "network"}, reference ${reference}). Try again.`;
   }
-  if (cause instanceof Error) {
-    return `${cause.message}. Try again.`;
-  }
-  return "an unexpected error occurred. Try again.";
+  const reference = logInternal("generation: unexpected run failure", cause);
+  return `an unexpected error stopped the run (reference ${reference}). Try again.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -359,32 +410,95 @@ export async function runGeneration(
   let partialText = "";
   let clientGone = false;
 
-  // Persist one generation_events row, then (best-effort) forward it live. A
-  // persistence failure throws — the run fails honestly. A forward failure
-  // means the client left; persistence already happened, so the run continues.
+  // ---- the batching writer -------------------------------------------------
+  // Lines are buffered briefly and written as one multi-row insert, then
+  // forwarded in the same order. Persist-then-forward is unchanged; only the
+  // number of round-trips is. A failed flush is remembered and re-thrown from
+  // the next emit() or from drain(), so the run still fails honestly.
+  type PendingEvent = { kind: GenerationEventKind; content: string };
+  let buffer: PendingEvent[] = [];
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
+  let flushChain: Promise<void> = Promise.resolve();
+  let persistFailure: PersistError | null = null;
+
+  const forward = (
+    kind: GenerationEventKind,
+    content: string,
+    id: number,
+    at: string
+  ) => {
+    if (sink === null || clientGone) return;
+    try {
+      sink({ type: "event", id, kind, content, at });
+    } catch {
+      clientGone = true; // client disconnected; keep persisting to the DB
+    }
+  };
+
+  const flush = async (): Promise<void> => {
+    if (persistFailure !== null || buffer.length === 0) return;
+    const batch = buffer;
+    buffer = [];
+    const { data, error } = await supabase
+      .from("generation_events")
+      .insert(
+        batch.map((e) => ({
+          briefing_id: briefingId,
+          org_id: orgId,
+          kind: e.kind,
+          content: e.content,
+        }))
+      )
+      .select("id, created_at"); // named columns (R2)
+    const rows = (data ?? []) as { id: number; created_at: string }[];
+    if (error || rows.length !== batch.length) {
+      // Never forward what we could not prove we stored.
+      persistFailure = new PersistError(
+        error
+          ? `a log line did not persist (reference ${logInternal("generation: generation_events batch insert failed", error)})`
+          : `a log line did not persist (${rows.length} of ${batch.length} rows came back)`
+      );
+      return;
+    }
+    // Postgres returns a multi-row insert in the order it was given, so index
+    // i of the result is index i of the batch.
+    for (let i = 0; i < batch.length; i++) {
+      forward(batch[i].kind, batch[i].content, rows[i].id, rows[i].created_at);
+    }
+  };
+
+  const queueFlush = () => {
+    if (flushTimer !== null) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    flushChain = flushChain.then(flush); // serialized: ordering is preserved
+  };
+
+  const scheduleFlush = () => {
+    if (flushTimer !== null) return;
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      flushChain = flushChain.then(flush);
+    }, EVENT_BATCH_MS);
+  };
+
+  /** Wait for everything buffered to be stored + forwarded; throw on failure. */
+  const drainEvents = async (): Promise<void> => {
+    queueFlush();
+    await flushChain;
+    if (persistFailure !== null) throw persistFailure;
+  };
+
   const emit = async (
     kind: GenerationEventKind,
     content: string
   ): Promise<void> => {
+    if (persistFailure !== null) throw persistFailure;
     if (kind === "text_delta") partialText += content;
-    const { data, error } = await supabase
-      .from("generation_events")
-      .insert({ briefing_id: briefingId, org_id: orgId, kind, content })
-      .select("id, created_at")
-      .single();
-    if (error || !data) {
-      throw new PersistError(
-        error?.message ?? "a log line did not persist"
-      );
-    }
-    const row = data as { id: number; created_at: string };
-    if (sink !== null && !clientGone) {
-      try {
-        sink({ type: "event", id: row.id, kind, content, at: row.created_at });
-      } catch {
-        clientGone = true; // client disconnected; keep persisting to the DB
-      }
-    }
+    buffer.push({ kind, content });
+    if (buffer.length >= EVENT_BATCH_MAX) queueFlush();
+    else scheduleFlush();
   };
 
   const auditLine = async (event: string, detail: string): Promise<void> => {
@@ -397,7 +511,7 @@ export async function runGeneration(
       actor_user_id: prepared.userId,
     });
     if (error) {
-      console.error(`${event} audit line failed: ${error.message}`);
+      logInternal(`generation: ${event} audit line failed`, error);
     }
   };
 
@@ -429,6 +543,12 @@ export async function runGeneration(
         : `Checked citations against the sources — ${verified} of ${total} verified.`
     );
 
+    // Every buffered line must be stored before the briefing is marked
+    // complete — otherwise a COMPLETE row could reference a log that is still
+    // in memory, and a crash here would leave a finished briefing with a
+    // truncated replay.
+    await drainEvents();
+
     const finalTitle = requestedTitle ?? raw.title;
     const bodyMd =
       partialText.trim() !== ""
@@ -452,7 +572,7 @@ export async function runGeneration(
       .single();
     if (updateError) {
       throw new PersistError(
-        `finalizing the briefing failed: ${updateError.message}`
+        `finalizing the briefing failed (reference ${logInternal("generation: briefing finalize update failed", updateError)})`
       );
     }
 
@@ -465,6 +585,7 @@ export async function runGeneration(
     );
 
     await emit("status", "Briefing complete.");
+    await drainEvents();
 
     const done: StreamMessage = {
       type: "done",
@@ -490,6 +611,19 @@ export async function runGeneration(
   } catch (cause) {
     const message = humanFailure(cause);
 
+    // Stop any pending flush timer, then try once to store whatever is still
+    // buffered. If persistence is what broke, this is a no-op by design — the
+    // failure note below is written directly and is what the reader sees.
+    if (flushTimer !== null) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    try {
+      await drainEvents();
+    } catch {
+      // Already failing; the note below is the truthful record.
+    }
+
     // Mark the run failed, keeping the partial body that streamed (the partial
     // LOG is already persisted as generation_events rows). This write's error
     // is checked; if the DB itself is down we can only log, having nothing
@@ -504,7 +638,7 @@ export async function runGeneration(
       .eq("id", briefingId)
       .select("id");
     if (failError) {
-      console.error(`marking briefing failed also failed: ${failError.message}`);
+      logInternal("generation: marking the briefing failed ALSO failed", failError);
     }
 
     // A truthful failure note in the log (no false COMPLETE audit is written).
@@ -517,7 +651,7 @@ export async function runGeneration(
         content: `This briefing didn't finish — ${message}`,
       });
     if (noteError) {
-      console.error(`failure note did not persist: ${noteError.message}`);
+      logInternal("generation: failure note did not persist", noteError);
     }
 
     const done: StreamMessage = {

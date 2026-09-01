@@ -18,6 +18,7 @@ import { UploadIcon } from "@/components/ui-sn/icons";
 import { MicroFaint } from "@/components/ui-sn/micro";
 import { Toast } from "@/components/ui-sn/toast";
 import type { WorkspaceDocument } from "@/lib/workspace-data";
+import { ACCEPTED_SUMMARY } from "@/lib/ingest/file-types";
 import { uploadDocumentFile } from "@/components/add-document/upload-client";
 
 const SANS = "var(--font-space-grotesk), 'Space Grotesk', sans-serif";
@@ -159,7 +160,7 @@ export function DropZone({
             Drop to add to {orgName}
           </span>
           <MicroFaint style={{ marginTop: 4 }}>
-            PDF · DOCX · TXT · MD · RTF
+            {ACCEPTED_SUMMARY}
           </MicroFaint>
         </div>
       ) : null}

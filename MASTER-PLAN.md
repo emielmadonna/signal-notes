@@ -164,7 +164,15 @@ workspace; unknown ids render the not-found sheet).
 
 ## P5 — HARDENING + FULL VERIFICATION SWEEP (~3h)
 
-- E2E suite (Playwright, committed, wired into gatecheck + CI): sign-in
+> CORRECTION (card-015): the line below claimed the E2E suite was "wired into
+> gatecheck + CI". It was written, committed, and then invoked by nothing — no
+> npm script, no CI step, and not by the verifier, whose test block was guarded
+> by a grep for a `"test"` script that did not exist. The "42/42 live E2E" in
+> the SHIPLOG was one manual run with no regression gate behind it. The wiring
+> the line describes exists as of card-015; it did not exist in P5.
+
+
+- E2E suite (Playwright, committed; WIRED IN CARD-015, not in P5): sign-in
   (success / wrong password / expired banner / next-redirect / open-redirect
   bypass strings), documents (all 4 states, forced 500s, add via paste + EVERY
   file type PDF/DOCX/TXT/MD/RTF + WEB URL, title/body edit optimistic, rename,

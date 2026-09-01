@@ -10,10 +10,32 @@ import type { CSSProperties } from "react";
 
 const MONO = "var(--font-plex-mono), 'IBM Plex Mono', monospace";
 
-export type FileExt = "PDF" | "DOCX" | "TXT" | "MD" | "RTF" | "WEB";
+export type FileExt =
+  | "PDF"
+  | "DOCX"
+  | "TXT"
+  | "MD"
+  | "RTF"
+  | "WEB"
+  | "HTML"
+  | "XML"
+  | "CSV"
+  | "TSV"
+  | "JSON"
+  | "YAML"
+  | "SRT"
+  | "VTT"
+  | "LOG";
 export type FileIconSize = "sm" | "md" | "lg";
 
 // File-type colors (DESIGN-SPEC §1), routed through the token layer.
+//
+// The six the design system named keep their own tokens. The formats the
+// uploader grew later (lib/ingest/file-types.ts) are deliberately mapped onto
+// those SAME six by family rather than given nine improvised new colors: the
+// markup family reads as WEB, the structured-data family as MD, and the
+// transcript/plain family as TXT. No styling is invented here, and an unknown
+// label still falls back to muted below.
 const EXT_COLOR: Record<FileExt, string> = {
   PDF: "var(--sn-file-pdf)",
   DOCX: "var(--sn-file-docx)",
@@ -21,6 +43,15 @@ const EXT_COLOR: Record<FileExt, string> = {
   MD: "var(--sn-file-md)",
   RTF: "var(--sn-file-rtf)",
   WEB: "var(--sn-file-web)",
+  HTML: "var(--sn-file-web)",
+  XML: "var(--sn-file-web)",
+  CSV: "var(--sn-file-md)",
+  TSV: "var(--sn-file-md)",
+  JSON: "var(--sn-file-md)",
+  YAML: "var(--sn-file-md)",
+  SRT: "var(--sn-file-txt)",
+  VTT: "var(--sn-file-txt)",
+  LOG: "var(--sn-file-txt)",
 };
 
 // Hex-alpha → percentage used with color-mix (2E=18%, 33=20%, 44=26.7%).

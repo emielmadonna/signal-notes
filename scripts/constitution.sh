@@ -36,47 +36,17 @@ grep_absent "R2 no select(\"*\") or empty select()" '\.select\(\s*("\*"|'"'"'\*'
 # R3: no empty catch blocks
 grep_absent "R3 no empty catch {}" 'catch\s*(\([^)]*\))?\s*\{\s*\}'
 
-# R3c: comment-only catch bodies pass the regex above but still swallow errors.
-# WARN (not FAIL) — the auditor must confirm each one is a justified pattern
-# with a stated backstop (added after the card-5a audit noted the gap).
-R3C=$(grep -rnE 'catch\s*(\([^)]*\))?\s*\{' $SRC_DIRS 2>/dev/null | wc -l | tr -d ' ')
-R3C_EMPTYISH=$(perl -0777 -ne 'while(/catch\s*(?:\([^)]*\))?\s*\{((?:\s|\/\/[^\n]*\n|\/\*.*?\*\/)*)\}/gs){print "hit\n"}' $(find $SRC_DIRS -name '*.ts' -o -name '*.tsx' 2>/dev/null) 2>/dev/null | wc -l | tr -d ' ')
-if [ "${R3C_EMPTYISH:-0}" -gt 0 ]; then
-  say "WARN" "R3c $R3C_EMPTYISH comment-only catch block(s): auditor must confirm each has a stated backstop"
+# R3b / R3c / R5b: the three rules that used to be WARN-only, each ending in
+# "auditor must confirm each one". Nobody confirms anything in CI, so all three
+# passed silently — the gate shipped with its own escape hatch. They are now a
+# real check (scripts/check-conventions.ts) that FAILS on anything not recorded
+# in docs/constitution-exceptions.json with a written reason, and also fails on
+# a recorded exception that no longer matches anything.
+if npx tsx scripts/check-conventions.ts >> "$REPORT" 2>&1; then
+  say "PASS" "R3b/R3c/R5b conventions (recorded exceptions verified)"
 else
-  say "PASS" "R3c no comment-only catch blocks"
-fi
-
-# R3b: supabase writes must reference { error } nearby (heuristic; auditor confirms)
-WRITES=$(grep -rnE '\.(insert|update|upsert|delete)\(' $SRC_DIRS 2>/dev/null | grep -vc 'error' || true)
-if [ "${WRITES:-0}" -gt 0 ]; then
-  say "WARN" "R3b $WRITES write call line(s) with no 'error' on the same line: auditor must confirm each is checked"
-else
-  say "PASS" "R3b writes reference their { error }"
-fi
-
-# R5: prompt-shaped strings only in lib/prompts/
-PROMPT_HITS=$(grep -rnEi '(you are an?|system prompt|<\s*instructions)' $SRC_DIRS 2>/dev/null | grep -v '^lib/prompts/' || true)
-if [ -n "$PROMPT_HITS" ]; then
-  say "FAIL" "R5 prompt-like strings found outside lib/prompts/"
-  echo "$PROMPT_HITS" | sed 's/^/       /' | tee -a "$REPORT"
+  say "FAIL" "R3b/R3c/R5b conventions: unconfirmed hit(s) or stale exception(s) — see $REPORT"
   FAIL=1
-else
-  say "PASS" "R5 prompts only in lib/prompts/"
-fi
-
-# R5b: model-facing instruction strings hiding in the AI engine / API handlers
-# instead of lib/prompts/. The R5 grep above only knows a few fixed phrases;
-# this catches second-person imperatives typical of prompts (added after catch
-# #18, where three such strings sat unversioned in lib/ai/). WARN, not FAIL:
-# the auditor confirms each hit is a genuine prompt (move it) or a protocol
-# token / error message (leave it).
-R5B=$(grep -rnE '"[^"]*(you may|you just|you wrote|resubmit|call [a-z_]+ with|do not (read|include)|only read|source set)[^"]*"' lib/ai app/api 2>/dev/null || true)
-if [ -n "$R5B" ]; then
-  say "WARN" "R5b prompt-shaped strings in lib/ai or app/api: auditor must confirm each is a token/error, not an unversioned prompt"
-  echo "$R5B" | sed 's/^/       /' | tee -a "$REPORT"
-else
-  say "PASS" "R5b no prompt-shaped instruction strings outside lib/prompts/"
 fi
 
 # KEY LEAK: service-role key must never be client-reachable
@@ -184,7 +154,7 @@ else
   say "WARN" "DB checks skipped: DATABASE_URL not set (activate in foundation phase)"
 fi
 
-# ---- Types + tests ----
+# ---- Types, lint, tests ----
 if [ -f tsconfig.json ]; then
   # Next generates route types (.next/types) that tsc needs; a clean checkout
   # (CI) has none, so generate them first. Caught by the first CI run (#10).
@@ -193,8 +163,43 @@ if [ -f tsconfig.json ]; then
   fi
   if npx tsc --noEmit >> "$REPORT" 2>&1; then say "PASS" "typecheck"; else say "FAIL" "typecheck"; FAIL=1; fi
 fi
-if [ -f package.json ] && grep -q '"test"' package.json; then
-  if npm test --silent >> "$REPORT" 2>&1; then say "PASS" "tests"; else say "FAIL" "tests"; FAIL=1; fi
+
+# LINT. This was never run by anything — not by the verifier, not by CI — and
+# it was failing (5 errors) the whole time. A lint script that nothing invokes
+# is not a standard, it is a decoration.
+if [ -f package.json ] && grep -q '"lint"' package.json; then
+  if npm run --silent lint >> "$REPORT" 2>&1; then say "PASS" "lint"; else say "FAIL" "lint"; FAIL=1; fi
+else
+  say "FAIL" "lint: no \"lint\" script in package.json"
+  FAIL=1
+fi
+
+# UNIT TESTS. The old block was:
+#     if [ -f package.json ] && grep -q '"test"' package.json; then ... fi
+# …and package.json had no "test" script, so the grep matched nothing and the
+# whole block was skipped IN SILENCE — the verifier reported all-green having
+# run no tests at all. A missing test script is now itself a FAIL, and the
+# absence is stated out loud rather than inferred from a line that never printed.
+if grep -q '"test"' package.json 2>/dev/null; then
+  if npm test --silent >> "$REPORT" 2>&1; then say "PASS" "unit tests"; else say "FAIL" "unit tests"; FAIL=1; fi
+else
+  say "FAIL" "unit tests: no \"test\" script in package.json (the suite cannot be run)"
+  FAIL=1
+fi
+
+# E2E. The Playwright suite needs a live database, seeded users and browsers,
+# so it is opt-in via RUN_E2E=1 (CI sets it on the job that holds the secrets).
+# What it must NEVER do is skip without saying so — that was the original sin
+# of the block above.
+if [ "${RUN_E2E:-0}" = "1" ]; then
+  if npx playwright test >> "$REPORT" 2>&1; then
+    say "PASS" "e2e suite (playwright)"
+  else
+    say "FAIL" "e2e suite (playwright): see $REPORT"
+    FAIL=1
+  fi
+else
+  say "SKIP" "e2e suite NOT RUN (set RUN_E2E=1 with a live DB + seeded users to include it)"
 fi
 
 echo "" | tee -a "$REPORT"

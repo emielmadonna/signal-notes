@@ -1,10 +1,19 @@
 // POST /api/documents/upload — the file half of document ingestion (card-008).
-// Accepts one multipart file (PDF/DOCX/TXT/MD/RTF, hard 20 MB cap), extracts
-// its ACTUAL text server-side, inserts the document as the signed-in user
-// (server client = user session, RLS enforced — never the service key), and
-// writes the UPLOADED audit line. Every failure returns JSON with a human
-// `error` message and a truthful status; a non-2xx is never an empty body
-// (constitution R3). Every select/insert names its columns (R2).
+// Accepts one multipart file (every format lib/ingest/file-types.ts can read,
+// hard 20 MB cap), extracts its ACTUAL text server-side, inserts the document
+// as the signed-in user (server client = user session, RLS enforced — never
+// the service key), and writes the UPLOADED audit line. Every failure returns
+// JSON with a human `error` message and a truthful status; a non-2xx is never
+// an empty body (constitution R3). Every select/insert names its columns (R2).
+//
+// Two things this route is now deliberately careful about, both from live bugs:
+//   * WHAT IT ACCEPTS is a table (lib/ingest/file-types.ts), not a hard-coded
+//     list of five extensions, and a file whose NAME says nothing is sniffed
+//     by content rather than refused outright (catch #24).
+//   * WHAT IT STORES goes through sanitizeDocumentText first. Extracted PDF /
+//     DOCX / RTF text routinely carries NULs and lone surrogates that Postgres
+//     and JSON cannot hold, and each one turned a perfectly good upload into a
+//     500 at the insert (catch #23).
 import { NextResponse } from "next/server";
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
@@ -18,6 +27,19 @@ import { PDFParse } from "pdf-parse";
 // @ts-expect-error -- pdf.worker.mjs ships no type declarations
 import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 import { createClient } from "@/lib/supabase/server";
+import { resolveOrgId } from "@/lib/org";
+import { internalError } from "@/lib/errors";
+import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
+import {
+  ACCEPTED_SUMMARY,
+  fileNameStem,
+  refusalFor,
+  typeFromContent,
+  typeFromFileName,
+  type AcceptedType,
+} from "@/lib/ingest/file-types";
+import { extractReadableText } from "@/lib/html/readable-text";
+import { sanitizeDocumentText, sanitizeLine } from "@/lib/ingest/sanitize";
 
 (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = pdfjsWorker;
 
@@ -32,26 +54,8 @@ const KINDS = new Set([
   "other",
 ]);
 
-type ParsedExt = "PDF" | "DOCX" | "TXT" | "MD" | "RTF";
-
-function extFromName(name: string): ParsedExt | null {
-  const dot = name.lastIndexOf(".");
-  if (dot < 0) return null;
-  const ext = name.slice(dot + 1).toUpperCase();
-  if (ext === "PDF" || ext === "DOCX" || ext === "TXT" || ext === "MD" || ext === "RTF") {
-    return ext;
-  }
-  return null;
-}
-
-/** "quarterly-notes.pdf" → "quarterly-notes" (title fallback). */
-function fileNameStem(name: string): string {
-  const dot = name.lastIndexOf(".");
-  return (dot > 0 ? name.slice(0, dot) : name).trim();
-}
-
-function jsonError(status: number, error: string) {
-  return NextResponse.json({ error }, { status });
+function jsonError(status: number, error: string, headers?: HeadersInit) {
+  return NextResponse.json({ error }, { status, headers });
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +159,15 @@ function decodeUtf8(bytes: Uint8Array): string {
   return new TextDecoder("utf-8").decode(bytes);
 }
 
+/** One dispatch point, so adding a format is a row in the table, not an if. */
+async function extract(type: AcceptedType, bytes: Uint8Array): Promise<string> {
+  if (type.strategy === "pdf") return extractPdf(bytes);
+  if (type.strategy === "docx") return extractDocx(bytes);
+  if (type.strategy === "rtf") return extractRtf(decodeUtf8(bytes));
+  if (type.strategy === "html") return extractReadableText(decodeUtf8(bytes)).text;
+  return decodeUtf8(bytes); // every plain-text family member
+}
+
 // ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
@@ -168,6 +181,14 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (authError || !user) {
     return jsonError(401, "You need to be signed in to add documents.");
+  }
+
+  // Metered before we spend CPU parsing and extracting a 20 MB file.
+  const limit = await consumeRateLimit(supabase, "upload");
+  if (!limit.allowed) {
+    return jsonError(429, rateLimitMessage("upload", limit.retryAfterSeconds), {
+      "Retry-After": String(limit.retryAfterSeconds),
+    });
   }
 
   // The cap, checked BEFORE the body is parsed: formData() itself chokes on
@@ -198,12 +219,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const ext = extFromName(file.name);
-  if (ext === null) {
-    return jsonError(
-      415,
-      `We can read PDF, DOCX, TXT, MD and RTF files — “${file.name}” isn't one of those.`
-    );
+  if (file.size === 0) {
+    return jsonError(422, `“${file.name}” is empty, so there is nothing to read.`);
   }
 
   const kindRaw = form.get("kind");
@@ -212,23 +229,41 @@ export async function POST(request: Request) {
 
   const bytes = new Uint8Array(await file.arrayBuffer());
 
-  let body: string;
-  try {
-    if (ext === "PDF") body = await extractPdf(bytes);
-    else if (ext === "DOCX") body = await extractDocx(bytes);
-    else if (ext === "RTF") body = extractRtf(decodeUtf8(bytes));
-    else body = decodeUtf8(bytes); // TXT / MD are already plain text
-  } catch (cause) {
-    // Server log keeps the real parser error for operators; the client gets
-    // the human version.
-    console.error(`extraction failed for ${file.name} (${ext}):`, cause);
+  // What IS this file? The name first, because it is what the user believes.
+  // Then, for a name that tells us nothing, the bytes — a download called
+  // "attachment" with no extension is still a PDF, and refusing it would be
+  // wrong. A format we recognise but genuinely cannot read gets its own named
+  // way out ("save it as .docx"), never a generic refusal.
+  let type = typeFromFileName(file.name);
+  if (type === null) {
+    const named = refusalFor(file.name);
+    if (named !== null) return jsonError(415, named);
+    type = typeFromContent(bytes);
+  }
+  if (type === null) {
     return jsonError(
-      422,
-      `We couldn't read “${file.name}” as a ${ext} file. It may be corrupted or password-protected.`
+      415,
+      `We couldn't read “${file.name}” as text. We can read ${ACCEPTED_SUMMARY}.`
     );
   }
 
-  body = body.replace(/\r\n/g, "\n").trim();
+  let extracted: string;
+  try {
+    extracted = await extract(type, bytes);
+  } catch (cause) {
+    // Server log keeps the real parser error for operators; the client gets
+    // the human version.
+    console.error(`extraction failed for ${file.name} (${type.label}):`, cause);
+    return jsonError(
+      422,
+      `We couldn't read “${file.name}” as a ${type.label} file. It may be corrupted or password-protected.`
+    );
+  }
+
+  // The gate that stops a good upload dying as a 500: NULs, lone surrogates
+  // and stray control characters cannot survive a Postgres text column or the
+  // JSON that carries it, and PDF/DOCX/RTF extraction emits all three.
+  const body = sanitizeDocumentText(extracted).trim();
   if (body === "") {
     return jsonError(
       422,
@@ -237,24 +272,19 @@ export async function POST(request: Request) {
   }
 
   const titleRaw = form.get("title");
+  const givenTitle = typeof titleRaw === "string" ? sanitizeLine(titleRaw) : "";
+  const fileName = sanitizeLine(file.name);
   const title =
-    typeof titleRaw === "string" && titleRaw.trim() !== ""
-      ? titleRaw.trim()
-      : fileNameStem(file.name) || file.name;
+    givenTitle !== ""
+      ? givenTitle
+      : sanitizeLine(fileNameStem(file.name)) || fileName || "Untitled document";
 
-  // The user's org — named column, scoped to their own membership row.
-  const { data: memberships, error: orgError } = await supabase
-    .from("org_members")
-    .select("org_id")
-    .eq("user_id", user.id)
-    .limit(1);
-  if (orgError) {
-    return jsonError(500, `We couldn't look up your organization: ${orgError.message}`);
+  // The user's org — one shared, deterministically-ordered lookup (lib/org.ts).
+  const org = await resolveOrgId(supabase, user.id);
+  if (org.error) {
+    return jsonError(org.error.status, org.error.message);
   }
-  if (!memberships || memberships.length === 0) {
-    return jsonError(403, "Your account isn't in an organization yet, so there is nowhere to put this document.");
-  }
-  const orgId = memberships[0].org_id as string;
+  const orgId = org.orgId;
 
   // RLS (documents_insert) re-checks this org server-side; the insert runs
   // as the signed-in user, never the service role.
@@ -265,8 +295,8 @@ export async function POST(request: Request) {
       title,
       kind,
       body,
-      file_name: file.name,
-      ext,
+      file_name: fileName || title,
+      ext: type.label,
       size_bytes: file.size,
       added_by: user.id,
     })
@@ -275,19 +305,24 @@ export async function POST(request: Request) {
   if (insertError || !doc) {
     return jsonError(
       500,
-      `Saving the document failed: ${insertError?.message ?? "no row came back"}. Nothing was added.`
+      internalError(
+        "Saving the document failed, so nothing was added. Try again.",
+        "upload document insert failed",
+        insertError ?? new Error("no row came back")
+      )
     );
   }
 
-  // The UPLOADED audit line (append-only trail; actor label derived from the
-  // VERIFIED email, never from client input).
+  // The UPLOADED audit line. `actor` is stamped from the verified JWT by the
+  // audit_events_stamp_actor trigger (migration 0003) — what we send is a
+  // hint, not the authority.
   const actor = (user.email ?? "user").split("@")[0].toUpperCase();
   const kb = Math.max(1, Math.round(file.size / 1024));
   const { error: auditError } = await supabase.from("audit_events").insert({
     org_id: orgId,
     document_id: doc.id,
     event: "UPLOADED",
-    detail: `${file.name} · ${kb} KB`,
+    detail: `${fileName || title} · ${kb} KB`,
     actor,
     actor_user_id: user.id,
   });
@@ -297,7 +332,11 @@ export async function POST(request: Request) {
   return NextResponse.json({
     document: doc,
     warning: auditError
-      ? `The document was added, but writing its history line failed: ${auditError.message}`
+      ? internalError(
+          "The document was added, but writing its history line failed.",
+          "upload audit insert failed",
+          auditError
+        )
       : null,
   });
 }

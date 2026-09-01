@@ -18,7 +18,6 @@ async function assertNoHorizontalOverflow(page: Page, label: string) {
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,
   }));
-  // eslint-disable-next-line no-console
   console.log(
     `768-OVERFLOW ${label}: scrollWidth=${scrollWidth} clientWidth=${clientWidth} (tol ${TOLERANCE})`
   );

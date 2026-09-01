@@ -416,8 +416,13 @@ export function BriefingGrid({
   onDeleted: (briefingId: string) => void;
 }) {
   const [hover, setHover] = useState<string | null>(null);
+  // Mirrors `hover` for the debounce timer below, which fires asynchronously
+  // and must compare against the value at fire time. Written in flipTo() —
+  // the only place hover changes — rather than during render, where touching
+  // a ref is a React rule violation (and a real hazard: render can be
+  // discarded or replayed, so the mirror could reflect a state that never
+  // committed).
   const hoverRef = useRef<string | null>(null);
-  hoverRef.current = hover;
 
   // --- FLIP reflow, ported from the canvas flipTo(): capture every cell's
   // rect BEFORE the hover state changes, then invert-and-play the delta
@@ -429,6 +434,7 @@ export function BriefingGrid({
     const prev = new Map<string, DOMRect>();
     cells.current.forEach((el, key) => prev.set(key, el.getBoundingClientRect()));
     prevRects.current = prev;
+    hoverRef.current = id;
     setHover(id);
   }, []);
 

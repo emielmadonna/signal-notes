@@ -308,3 +308,52 @@ specs without asserting unobserved results, builders don't add them.
   a LIVE complete briefing by clicking a COMPLETE card, so no vanished id can
   break them or make an isolation check pass vacuously. Lesson: tests must not
   pin to a single mutable row; resolve fixtures from live state.
+
+## Catch #23 — 2026-09-01 (Emiel: "document uploading doesn't work, 500 errors")
+- CLAIM (mine, catch #22, in the stream at 12:30): "Document upload and
+  generation both verified live." The multi-format upload suite was green, so
+  upload was called done.
+- VICTIM: Emiel, who could not add his own documents. Every upload whose
+  extracted text happened to contain a NUL byte or an unpaired surrogate died
+  as `500 Saving the document failed` — and those are not exotic: pdf.js emits
+  a NUL for any glyph with no Unicode mapping (ordinary CID-font PDFs), and
+  RTF's \uN escape plus pdf.js's UTF-16 handling both emit lone surrogates.
+- THE CATCH: posting real files at the live route rather than only the four
+  hand-made fixtures. The fixtures were clean ASCII, so the suite was green on
+  a route that broke on real documents. Two reproductions, verbatim:
+      RESULT 500 | nul-byte.txt       | {"error":"Saving the document failed:
+                                        unsupported Unicode escape sequence..."}
+      RESULT 500 | lone-surrogate.rtf | {"error":"Saving the document failed:
+                                        Empty or invalid json..."}
+  Postgres `text` physically cannot hold U+0000; a lone surrogate breaks the
+  JSON encoding before PostgREST ever sees the row.
+- FIX + SYSTEM CHANGE: lib/ingest/sanitize.ts strips NULs, lone surrogates and
+  stray control characters before any write, and is applied on ALL THREE paths
+  into documents.body — the upload route, the fetch-url route, and the paste
+  path in the add-document sheet — so no future ingestion path can forget it.
+  tests/sanitize.test.ts pins both reproductions plus the JSON round-trip;
+  e2e/p6-ingestion.spec.ts posts both files at the live route. Lesson: a green
+  suite proves the fixtures, not the feature — ingestion tests must include
+  bytes the parsers actually produce, not only bytes we typed ourselves.
+
+## Catch #24 — 2026-09-01 (same report: "accept all the file types we can support")
+- CLAIM (implicit, in the route's own 415 message): "We can read PDF, DOCX,
+  TXT, MD and RTF files" — presented as the limit of what is possible.
+- VICTIM: anyone with a normal workspace. A .csv export, a saved .html page, a
+  .vtt or .srt call transcript, a .json export, a .yaml config, a .log — every
+  one of them is plain text we could always have read, and every one was
+  refused. So was any file with NO extension, which is what email attachments
+  and many downloads actually look like on disk.
+- THE CATCH: probing the live route with real files off the machine rather than
+  the fixture directory: three of seven were refused 415 purely on their names,
+  not on our ability to read them.
+- FIX + SYSTEM CHANGE: what the uploader accepts is now a TABLE
+  (lib/ingest/file-types.ts) rather than a hard-coded if-chain — fifteen labels
+  across four parse strategies, plus content sniffing (%PDF / PK / {\rtf /
+  is-it-text) for a file whose name says nothing, plus named refusals that say
+  what to do instead ("save it as .docx", "export the sheet as CSV") rather
+  than a generic no. Migration 0004 widens documents_ext_check to exactly the
+  labels the table can emit, and tests/file-types.test.ts asserts those two
+  lists against each other — a mismatch is a unit-test failure now, not a 500
+  in production. Lesson: an error message that states a limit should state a
+  REAL limit; "we can't read that" and "we didn't bother" must not look alike.

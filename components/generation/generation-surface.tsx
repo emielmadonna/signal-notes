@@ -43,8 +43,145 @@ const SERIF = "var(--font-literata), Literata, Georgia, serif";
 const SANS = "var(--font-space-grotesk), 'Space Grotesk', sans-serif";
 const MONO = "var(--font-plex-mono), 'IBM Plex Mono', monospace";
 
+// ---------------------------------------------------------------------------
+// Static style objects, hoisted to module scope.
+//
+// This is the ONLY surface that re-renders on every streamed event (it is the
+// sole consumer of useGenerationStream), so each object literal written inline
+// in its JSX was reallocated on every one. The objects below are entirely
+// constant — literals plus the SERIF/SANS/MONO module constants above — so
+// hoisting is a pure identity change: same values, allocated once.
+//
+// The objects that genuinely depend on props or state are deliberately LEFT
+// inline; pretending those are constant would be worse than the allocation.
+// ---------------------------------------------------------------------------
+
+const S = {
+  div1: { padding: "30px 32px 32px" },
+  div2: { fontFamily: SERIF, fontSize: 23 },
+  p1: {
+              fontSize: 13.5,
+              lineHeight: 1.65,
+              color: "var(--sn-muted)",
+              margin: "9px 0 16px",
+            },
+  div3: { padding: "22px clamp(20px,3vw,30px) 26px" },
+  div4: {
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 16,
+            flexWrap: "wrap",
+          },
+  div5: { minWidth: 0 },
+  h11: {
+                fontFamily: SERIF,
+                fontSize: "clamp(20px,2.4vw,24px)",
+                fontWeight: 400,
+                margin: 0,
+                color: "var(--sn-text)",
+              },
+  microLabel1: { display: "block", marginTop: 9 },
+  div6: { display: "flex", gap: 8, alignItems: "center" },
+  div7: {
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              margin: "16px 0 0",
+              paddingBottom: 16,
+              borderBottom: "1px solid var(--sn-soft)",
+            },
+  span1: {
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  border: "1px solid var(--sn-border)",
+                  borderRadius: 100,
+                  padding: "5px 12px 5px 6px",
+                  fontSize: 11.5,
+                  color: "var(--sn-muted)",
+                },
+  div8: {
+            minHeight: 280,
+            paddingTop: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          },
+  div9: {
+                fontFamily: MONO,
+                fontSize: 11,
+                letterSpacing: ".08em",
+                color: "var(--sn-faint)",
+                animation: "sn-pulse 1.1s ease-in-out infinite",
+              },
+  div10: {
+                border: "1px solid var(--sn-soft)",
+                borderRadius: 12,
+                padding: "14px 16px",
+                background: "var(--sn-input-bg)",
+                marginTop: 4,
+              },
+  microLabel2: { display: "block", marginBottom: 8 },
+  div11: {
+                  fontFamily: SERIF,
+                  fontSize: 14.5,
+                  lineHeight: 1.75,
+                  color: "var(--sn-text)",
+                  whiteSpace: "pre-wrap",
+                },
+  span2: {
+                      color: "var(--sn-accent)",
+                      animation: "sn-blink 1s steps(1,end) infinite",
+                    },
+  div12: {
+              display: "flex",
+              gap: 14,
+              padding: "16px 0 0",
+              animation: "sn-line .22s ease both",
+            },
+  div13: {
+                width: 2,
+                background: "var(--sn-danger)",
+                flex: "none",
+                borderRadius: 2,
+              },
+  div14: {
+                  fontSize: 13.5,
+                  fontWeight: 500,
+                  color: "var(--sn-danger)",
+                },
+  p2: {
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                  color: "var(--sn-muted)",
+                  margin: "6px 0 0",
+                },
+  div15: { display: "flex", gap: 10, marginTop: 12 },
+  p3: {
+              fontSize: 12.5,
+              lineHeight: 1.5,
+              color: "var(--sn-danger)",
+              margin: "14px 0 0",
+            },
+  div16: {
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            borderTop: "1px solid var(--sn-soft)",
+            marginTop: 16,
+            paddingTop: 14,
+          },
+} as const;
+
+
 const mix = (color: string, pct: string) =>
   `color-mix(in srgb, ${color} ${pct}, transparent)`;
+
+/** Beat between the engine saying COMPLETE and the reading view taking over. */
+const AUTO_OPEN_DELAY_MS = 900;
 
 // ---------------------------------------------------------------------------
 // Metadata read (title + source chips). Named columns only (R2); RLS is the
@@ -209,6 +346,23 @@ export function GenerationSurface({ id }: { id: string }) {
   const failed = stream.status === "failed";
   const complete = stream.status === "complete";
 
+  // AUTO-OPEN the finished briefing. Waiting on the surface after the engine
+  // said "Briefing complete." and then having to notice a button is what made
+  // a run that HAD finished feel like one that never did. The short beat lets
+  // the COMPLETE chip and the final log line land first, so the hand-off is
+  // visible rather than a jump-cut; the Read-the-briefing button below stays
+  // for anyone who beats the timer or comes back to a finished run.
+  useEffect(() => {
+    if (!complete) return;
+    const t = setTimeout(
+      () => router.replace(`/briefings/${id}`),
+      AUTO_OPEN_DELAY_MS
+    );
+    // Leaving before the beat elapses cancels the hand-off, so a user who
+    // closes the surface is never yanked into the reading view afterwards.
+    return () => clearTimeout(t);
+  }, [complete, id, router]);
+
   // Elapsed, truthful and view-independent: from the first event's timestamp
   // to the last one (frozen when the run ends), ticking against the wall clock
   // only while it is still live.
@@ -269,17 +423,12 @@ export function GenerationSurface({ id }: { id: string }) {
   if (meta.state === "notfound") {
     return (
       <Sheet variant="narrow" onClose={close} aria-label="Page not found">
-        <div style={{ padding: "30px 32px 32px" }}>
-          <div style={{ fontFamily: SERIF, fontSize: 23 }}>
+        <div style={S.div1}>
+          <div style={S.div2}>
             This page doesn&apos;t exist.
           </div>
           <p
-            style={{
-              fontSize: 13.5,
-              lineHeight: 1.65,
-              color: "var(--sn-muted)",
-              margin: "9px 0 16px",
-            }}
+            style={S.p1}
           >
             It may have been deleted, or the link may be wrong.
           </p>
@@ -305,34 +454,22 @@ export function GenerationSurface({ id }: { id: string }) {
           transition: "width .6s cubic-bezier(.3,.9,.3,1),background .3s",
         }}
       />
-      <div style={{ padding: "22px clamp(20px,3vw,30px) 26px" }}>
+      <div style={S.div3}>
         {/* Title · count/elapsed · status chip · close */}
         <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 16,
-            flexWrap: "wrap",
-          }}
+          style={S.div4}
         >
-          <div style={{ minWidth: 0 }}>
+          <div style={S.div5}>
             <h1
-              style={{
-                fontFamily: SERIF,
-                fontSize: "clamp(20px,2.4vw,24px)",
-                fontWeight: 400,
-                margin: 0,
-                color: "var(--sn-text)",
-              }}
+              style={S.h11}
             >
               {meta.state === "loading" ? "Starting the briefing…" : title}
             </h1>
-            <MicroLabel style={{ display: "block", marginTop: 9 }}>
+            <MicroLabel style={S.microLabel1}>
               {countLine}
             </MicroLabel>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={S.div6}>
             <span
               style={{
                 fontFamily: MONO,
@@ -353,28 +490,12 @@ export function GenerationSurface({ id }: { id: string }) {
         {/* GROUNDED IN — the bound source documents as chips (rule 6). */}
         {sources.length > 0 ? (
           <div
-            style={{
-              display: "flex",
-              gap: 8,
-              flexWrap: "wrap",
-              margin: "16px 0 0",
-              paddingBottom: 16,
-              borderBottom: "1px solid var(--sn-soft)",
-            }}
+            style={S.div7}
           >
             {sources.map((d) => (
               <span
                 key={d.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  border: "1px solid var(--sn-border)",
-                  borderRadius: 100,
-                  padding: "5px 12px 5px 6px",
-                  fontSize: 11.5,
-                  color: "var(--sn-muted)",
-                }}
+                style={S.span1}
               >
                 <FileIcon ext={d.ext as FileExt} size="sm" />
                 {d.file_name ?? d.title}
@@ -386,23 +507,11 @@ export function GenerationSurface({ id }: { id: string }) {
         {/* Activity log + live body (canvas lines[] + streamBox). Never a
             bare spinner: before the first line lands we say so in words. */}
         <div
-          style={{
-            minHeight: 280,
-            paddingTop: 16,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
+          style={S.div8}
         >
           {stream.lines.length === 0 && running ? (
             <div
-              style={{
-                fontFamily: MONO,
-                fontSize: 11,
-                letterSpacing: ".08em",
-                color: "var(--sn-faint)",
-                animation: "sn-pulse 1.1s ease-in-out infinite",
-              }}
+              style={S.div9}
             >
               CONNECTING TO THE RUN…
             </div>
@@ -420,33 +529,18 @@ export function GenerationSurface({ id }: { id: string }) {
               blinking accent caret while the run is live (canvas streamBox). */}
           {stream.streamedText ? (
             <div
-              style={{
-                border: "1px solid var(--sn-soft)",
-                borderRadius: 12,
-                padding: "14px 16px",
-                background: "var(--sn-input-bg)",
-                marginTop: 4,
-              }}
+              style={S.div10}
             >
-              <MicroLabel style={{ display: "block", marginBottom: 8 }}>
+              <MicroLabel style={S.microLabel2}>
                 {complete ? "DRAFTED · FULL OUTPUT" : "DRAFTING · LIVE OUTPUT"}
               </MicroLabel>
               <div
-                style={{
-                  fontFamily: SERIF,
-                  fontSize: 14.5,
-                  lineHeight: 1.75,
-                  color: "var(--sn-text)",
-                  whiteSpace: "pre-wrap",
-                }}
+                style={S.div11}
               >
                 {stream.streamedText}
                 {running ? (
                   <span
-                    style={{
-                      color: "var(--sn-accent)",
-                      animation: "sn-blink 1s steps(1,end) infinite",
-                    }}
+                    style={S.span2}
                   >
                     ▍
                   </span>
@@ -463,44 +557,25 @@ export function GenerationSurface({ id }: { id: string }) {
             saved" — only that the sources are untouched and the partials stay. */}
         {failed ? (
           <div
-            style={{
-              display: "flex",
-              gap: 14,
-              padding: "16px 0 0",
-              animation: "sn-line .22s ease both",
-            }}
+            style={S.div12}
           >
             <div
-              style={{
-                width: 2,
-                background: "var(--sn-danger)",
-                flex: "none",
-                borderRadius: 2,
-              }}
+              style={S.div13}
             />
             <div>
               <div
-                style={{
-                  fontSize: 13.5,
-                  fontWeight: 500,
-                  color: "var(--sn-danger)",
-                }}
+                style={S.div14}
               >
                 This briefing didn&apos;t finish.
               </div>
               <p
-                style={{
-                  fontSize: 13,
-                  lineHeight: 1.6,
-                  color: "var(--sn-muted)",
-                  margin: "6px 0 0",
-                }}
+                style={S.p2}
               >
                 Your source documents are untouched. The partial draft and the
                 log above are kept on this briefing, so you can see how far the
                 run got before trying again.
               </p>
-              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+              <div style={S.div15}>
                 <PrimaryButton
                   size="sm"
                   type="button"
@@ -526,12 +601,7 @@ export function GenerationSurface({ id }: { id: string }) {
         {meta.state === "error" ? (
           <p
             role="alert"
-            style={{
-              fontSize: 12.5,
-              lineHeight: 1.5,
-              color: "var(--sn-danger)",
-              margin: "14px 0 0",
-            }}
+            style={S.p3}
           >
             We couldn&apos;t load this briefing&apos;s title and sources.{" "}
             {meta.detail}
@@ -540,16 +610,7 @@ export function GenerationSurface({ id }: { id: string }) {
 
         {/* Footer: the close-and-keep-running promise + Read the briefing. */}
         <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
-            flexWrap: "wrap",
-            borderTop: "1px solid var(--sn-soft)",
-            marginTop: 16,
-            paddingTop: 14,
-          }}
+          style={S.div16}
         >
           <MicroFaint>You can close this — the run keeps going.</MicroFaint>
           {complete ? (

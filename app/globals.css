@@ -1,6 +1,10 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+/* Removed with card-015: `tw-animate-css` (no `animate-*` class was ever used)
+   and `shadcn/tailwind.css` (every token the @apply rules below need —
+   --color-border, --color-ring, --color-background, --color-foreground — is
+   defined in the @theme inline block in this file). Their packages went with
+   them, along with components/ui/button.tsx, which nothing imported, and
+   lib/utils.ts, whose cn() had that one dead component as its only caller. */
 
 /* Dark is driven by the data-theme attribute the ThemeProvider sets on <html>
    (persisted in localStorage + the sn-theme cookie so the server can render

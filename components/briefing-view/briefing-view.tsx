@@ -741,7 +741,12 @@ function ReadyBriefing({
   );
 
   // --- Generation log (collapsible) + Audit toggle ----------------------
-  const [logOpen, setLogOpen] = useState(true);
+  // COLLAPSED by default: this view's job is the briefing, and the run's
+  // narration belongs to the generation surface, where it was watched live.
+  // Here the replay is evidence you can open, not the first thing standing
+  // between the reader and the text. (Rule 8 is about the work narrating
+  // itself WHILE it runs; every persisted line is still one click away.)
+  const [logOpen, setLogOpen] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
 
   const auditCount = audit.state === "populated" ? audit.rows.length : null;

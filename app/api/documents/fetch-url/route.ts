@@ -1,18 +1,34 @@
 // POST /api/documents/fetch-url — the web half of document ingestion
-// (card-008). Body: { url, title?, kind? }. Validates http(s), fetches the
-// page with a 10 s timeout and a 5 MB cap, strips it down to readable text,
-// and inserts the document as the signed-in user (server client = user
-// session, RLS enforced — never the service key) plus its UPLOADED audit
-// line. Every failure is JSON with a human `error` and a truthful status;
-// non-2xx is never an empty body (R3). Every select/insert names its
-// columns (R2).
+// (card-008). Body: { url, title?, kind? }. Validates http(s), refuses
+// private-network targets, fetches the page with a 10 s timeout and a 5 MB
+// cap, strips it down to readable text, and inserts the document as the
+// signed-in user (server client = user session, RLS enforced — never the
+// service key) plus its UPLOADED audit line. Every failure is JSON with a
+// human `error` and a truthful status; non-2xx is never an empty body (R3).
+// Every select/insert names its columns (R2).
+//
+// Audit follow-ups now landed here:
+//   - The SSRF host check moved to lib/net/private-address.ts and grew real
+//     IPv6 handling (an IPv4-mapped literal used to walk through) while
+//     losing its habit of rejecting every domain starting "fc"/"fd".
+//   - HTML extraction moved to lib/html/readable-text.ts, where a hostile
+//     numeric entity can no longer crash the handler into an empty 500.
+//   - This route is an authenticated OUTBOUND FETCHER, so it is metered.
+//   - Driver error text is logged, not returned (lib/errors.ts).
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isBlockedHost } from "@/lib/net/private-address";
+import { extractReadableText } from "@/lib/html/readable-text";
+import { sanitizeDocumentText, sanitizeLine } from "@/lib/ingest/sanitize";
+import { resolveOrgId } from "@/lib/org";
+import { internalError, logInternal } from "@/lib/errors";
+import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_PAGE_BYTES = 5 * 1024 * 1024; // 5 MB page cap
+const MAX_REDIRECTS = 4;
 
 const KINDS = new Set([
   "interview_notes",
@@ -21,106 +37,8 @@ const KINDS = new Set([
   "other",
 ]);
 
-function jsonError(status: number, error: string) {
-  return NextResponse.json({ error }, { status });
-}
-
-// ---------------------------------------------------------------------------
-// Readable-text extraction: strip scripts/styles/tags, decode the common
-// entities, collapse whitespace. Small on purpose — enough to turn an
-// article page into quotable text without pulling in a DOM.
-// ---------------------------------------------------------------------------
-
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: "&",
-  lt: "<",
-  gt: ">",
-  quot: '"',
-  apos: "'",
-  nbsp: " ",
-  mdash: "—",
-  ndash: "–",
-  hellip: "…",
-  rsquo: "’",
-  lsquo: "‘",
-  rdquo: "”",
-  ldquo: "“",
-};
-
-function decodeEntities(text: string): string {
-  return text
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) =>
-      String.fromCodePoint(parseInt(hex, 16))
-    )
-    .replace(/&#(\d+);/g, (_, dec: string) =>
-      String.fromCodePoint(parseInt(dec, 10))
-    )
-    .replace(/&([a-zA-Z]+);/g, (match, name: string) =>
-      NAMED_ENTITIES[name.toLowerCase()] ?? match
-    );
-}
-
-function extractReadableText(html: string): {
-  text: string;
-  pageTitle: string | null;
-} {
-  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  const pageTitle = titleMatch
-    ? decodeEntities(titleMatch[1]).replace(/\s+/g, " ").trim() || null
-    : null;
-
-  const text = decodeEntities(
-    html
-      // Whole elements whose content is never prose:
-      .replace(
-        /<(script|style|noscript|template|svg|head|iframe|object)\b[\s\S]*?<\/\1\s*>/gi,
-        " "
-      )
-      .replace(/<!--[\s\S]*?-->/g, " ")
-      // Block-level boundaries become line breaks so paragraphs survive…
-      .replace(
-        /<\/?(p|div|section|article|li|ul|ol|table|tr|blockquote|h[1-6]|br|hr|figure|figcaption|header|footer|main|aside|nav|dd|dt|pre)\b[^>]*>/gi,
-        "\n"
-      )
-      // …then every remaining tag disappears.
-      .replace(/<[^>]+>/g, " ")
-  )
-    // Collapse: spaces within lines, then runs of blank lines.
-    .split("\n")
-    .map((line) => line.replace(/\s+/g, " ").trim())
-    .join("\n")
-    .replace(/\n{2,}/g, "\n\n")
-    .trim();
-
-  return { text, pageTitle };
-}
-
-/**
- * Blocks addresses that point inside a private network (SSRF, catch #16).
- * Rejects localhost, the cloud metadata IP, and literal RFC-1918 / link-local
- * / unique-local / loopback addresses. A hostname that resolves to a private
- * IP only at connect time (DNS rebinding) is out of scope on Vercel's
- * serverless network and noted on the ASSUMED list.
- */
-function isBlockedHost(hostname: string): boolean {
-  const h = hostname.toLowerCase().replace(/^\[|\]$/g, ""); // strip IPv6 brackets
-  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".internal")) return true;
-  if (h === "169.254.169.254") return true; // cloud instance metadata
-  // IPv4 literals
-  const v4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (v4) {
-    const [a, b] = [Number(v4[1]), Number(v4[2])];
-    if (a === 10 || a === 127 || a === 0) return true;
-    if (a === 169 && b === 254) return true; // link-local
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT
-  }
-  // IPv6 loopback / link-local / unique-local
-  if (h === "::1" || h === "::" || h.startsWith("fe80:") || h.startsWith("fc") || h.startsWith("fd")) {
-    return true;
-  }
-  return false;
+function jsonError(status: number, error: string, headers?: HeadersInit) {
+  return NextResponse.json({ error }, { status, headers });
 }
 
 /** "https://example.com/reports/q3/" → "example.com/reports/q3" (≤80 chars). */
@@ -129,10 +47,6 @@ function fileNameFromUrl(url: URL): string {
   const name = `${url.host}${path}`;
   return name.length > 80 ? `${name.slice(0, 79)}…` : name;
 }
-
-// ---------------------------------------------------------------------------
-// Handler
-// ---------------------------------------------------------------------------
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -143,6 +57,14 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (authError || !user) {
     return jsonError(401, "You need to be signed in to add documents.");
+  }
+
+  // Metered BEFORE we make any outbound request on the caller's behalf.
+  const limit = await consumeRateLimit(supabase, "fetch-url");
+  if (!limit.allowed) {
+    return jsonError(429, rateLimitMessage("fetch-url", limit.retryAfterSeconds), {
+      "Retry-After": String(limit.retryAfterSeconds),
+    });
   }
 
   let payload: { url?: unknown; title?: unknown; kind?: unknown };
@@ -186,7 +108,7 @@ export async function POST(request: Request) {
       if (response.status < 300 || response.status >= 400) break;
       const location = response.headers.get("location");
       if (!location) break;
-      if (++hops > 4) {
+      if (++hops > MAX_REDIRECTS) {
         return jsonError(502, `${url.host} redirected too many times.`);
       }
       let next: URL;
@@ -210,6 +132,7 @@ export async function POST(request: Request) {
         `${url.host} didn't answer within 10 seconds. Try again, or paste the text instead.`
       );
     }
+    logInternal(`fetch-url could not reach ${url.host}`, cause);
     return jsonError(502, `We couldn't reach ${url.host}. Check the address and try again.`);
   }
 
@@ -252,11 +175,33 @@ export async function POST(request: Request) {
       html += decoder.decode(value, { stream: true });
     }
     html += decoder.decode();
-  } catch {
+  } catch (cause) {
+    logInternal(`fetch-url stream dropped for ${url.host}`, cause);
     return jsonError(502, `The connection to ${url.host} dropped mid-page. Try again.`);
   }
 
-  const { text, pageTitle } = extractReadableText(html);
+  // Belt and braces: extraction is now hardened against hostile entities, but
+  // it still runs on wholly attacker-supplied bytes, so a surprise here must
+  // be a truthful 422 rather than an empty 500 (R3).
+  let text: string;
+  let pageTitle: string | null;
+  try {
+    ({ text, pageTitle } = extractReadableText(html));
+  } catch (cause) {
+    return jsonError(
+      422,
+      internalError(
+        `We couldn't read the page at ${url.host}. Paste the text instead.`,
+        `fetch-url extraction failed for ${url.host}`,
+        cause
+      )
+    );
+  }
+
+  // The same gate the upload route uses: a page can carry NULs and lone
+  // surrogates (numeric entities decode straight into them), and Postgres
+  // rejects both — which arrives as a 500 at the insert, not here (catch #23).
+  text = sanitizeDocumentText(text).trim();
   if (text === "") {
     return jsonError(
       422,
@@ -266,29 +211,23 @@ export async function POST(request: Request) {
 
   const fileName = fileNameFromUrl(url);
   const titleRaw = payload.title;
-  const title =
+  const title = sanitizeLine(
     typeof titleRaw === "string" && titleRaw.trim() !== ""
-      ? titleRaw.trim()
-      : (pageTitle ?? fileName);
+      ? titleRaw
+      : (pageTitle ?? fileName)
+  ) || fileName;
   const kind =
     typeof payload.kind === "string" && KINDS.has(payload.kind)
       ? payload.kind
       : "web_copy";
   const sizeBytes = Buffer.byteLength(text, "utf8");
 
-  // The user's org — named column, scoped to their own membership row.
-  const { data: memberships, error: orgError } = await supabase
-    .from("org_members")
-    .select("org_id")
-    .eq("user_id", user.id)
-    .limit(1);
-  if (orgError) {
-    return jsonError(500, `We couldn't look up your organization: ${orgError.message}`);
+  // The user's org — one shared, deterministically-ordered lookup (lib/org.ts).
+  const org = await resolveOrgId(supabase, user.id);
+  if (org.error) {
+    return jsonError(org.error.status, org.error.message);
   }
-  if (!memberships || memberships.length === 0) {
-    return jsonError(403, "Your account isn't in an organization yet, so there is nowhere to put this document.");
-  }
-  const orgId = memberships[0].org_id as string;
+  const orgId = org.orgId;
 
   // RLS (documents_insert) re-checks the org; runs as the signed-in user.
   const { data: doc, error: insertError } = await supabase
@@ -308,25 +247,37 @@ export async function POST(request: Request) {
   if (insertError || !doc) {
     return jsonError(
       500,
-      `Saving the document failed: ${insertError?.message ?? "no row came back"}. Nothing was added.`
+      internalError(
+        "Saving the document failed, so nothing was added. Try again.",
+        "fetch-url document insert failed",
+        insertError ?? new Error("no row came back")
+      )
     );
   }
 
-  const actor = (user.email ?? "user").split("@")[0].toUpperCase();
+  // The UPLOADED audit line. `actor` is stamped from the verified JWT by the
+  // audit_events_stamp_actor trigger (migration 0003) — what we send is a
+  // hint, not the authority.
   const kb = Math.max(1, Math.round(sizeBytes / 1024));
   const { error: auditError } = await supabase.from("audit_events").insert({
     org_id: orgId,
     document_id: doc.id,
     event: "UPLOADED",
     detail: `${fileName} · ${kb} KB`,
-    actor,
+    actor: (user.email ?? "user").split("@")[0].toUpperCase(),
     actor_user_id: user.id,
   });
 
+  // The document IS saved at this point, so a failed audit line is reported as
+  // a warning on a 200 — claiming total failure would be the real lie.
   return NextResponse.json({
     document: doc,
     warning: auditError
-      ? `The document was added, but writing its history line failed: ${auditError.message}`
+      ? internalError(
+          "The document was added, but writing its history line failed.",
+          "fetch-url audit insert failed",
+          auditError
+        )
       : null,
   });
 }

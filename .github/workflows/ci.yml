@@ -1,10 +1,17 @@
 name: constitution
+
 on:
   push:
     branches: ["**"]
   pull_request:
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Everything that needs no secrets. Runs on every push, including forks.
+  # The verifier now performs typecheck + lint + the unit suite itself, but the
+  # explicit steps below stay so a failure names ITSELF in the job list rather
+  # than hiding inside one "constitution verifier" line.
+  # ---------------------------------------------------------------------------
   verify:
     runs-on: ubuntu-latest
     steps:
@@ -14,6 +21,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+
       # Live DB checks activate when the DATABASE_URL secret is configured;
       # without it the verifier runs every static check and warns on DB skips.
       # SEED_USER_PASSWORD lets the two-org probe sign in as the seeded users.
@@ -24,6 +32,7 @@ jobs:
           SEED_USER_PASSWORD: ${{ secrets.SEED_USER_PASSWORD }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
       # Evidence files are written on the runner; without this they vanish on
       # failure and the FAIL line names a file nobody can read (found the hard
       # way when the first live-check run failed opaquely).
@@ -33,10 +42,79 @@ jobs:
         with:
           name: shiplog-evidence
           path: shiplog/evidence/
+
+      # LINT — was never wired into CI, and was failing (5 errors) unnoticed.
+      - name: lint
+        if: always()
+        run: npm run lint
+
+      # UNIT TESTS — the constitution's test block used to be guarded by a grep
+      # for a "test" script that did not exist, so it skipped in total silence.
+      - name: unit tests
+        if: always()
+        run: npm test
+
       - name: typecheck
+        if: always()
         run: npx tsc --noEmit
+
       - name: build
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+  # ---------------------------------------------------------------------------
+  # The Playwright suite. It exists, it is committed, and until now NOTHING ran
+  # it — no npm script, no CI step, not the verifier. "42/42 live E2E" in the
+  # SHIPLOG was one manual run with no regression gate behind it.
+  #
+  # It needs a live database with the seeded users, so it runs only where those
+  # secrets exist. `if:` on the job (not a silent skip inside it) means the
+  # GitHub UI shows the job as skipped rather than pretending it passed.
+  # ---------------------------------------------------------------------------
+  e2e:
+    runs-on: ubuntu-latest
+    needs: verify
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: guard — refuse to pass silently without credentials
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SEED_USER_PASSWORD: ${{ secrets.SEED_USER_PASSWORD }}
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$SEED_USER_PASSWORD" ]; then
+            echo "::warning::E2E credentials are not configured; the browser suite did NOT run."
+            echo "SKIP_E2E=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: install browsers
+        if: env.SKIP_E2E != '1'
+        run: npx playwright install --with-deps chromium
+
+      - name: playwright
+        if: env.SKIP_E2E != '1'
+        run: npm run test:e2e
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SEED_USER_PASSWORD: ${{ secrets.SEED_USER_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: upload playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/.results/
+            shiplog/runs/
+            shiplog/evidence/

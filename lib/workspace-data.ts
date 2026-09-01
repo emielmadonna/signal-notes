@@ -332,9 +332,13 @@ export function useWorkspaceData(): WorkspaceData {
     const controller = new AbortController();
     const { signal } = controller;
 
-    setBriefings(loadingSection());
-    setDocuments(loadingSection());
-
+    // NB: the sections are NOT reset to loading here. Both useState calls
+    // already start in the loading state, and `retry` below flips them back
+    // before it bumps `attempt` — so the reset happens in the event handler
+    // that causes it, not in the effect that reacts to it. Doing it here was
+    // a synchronous setState in an effect body: a guaranteed second render
+    // pass on every mount, and a React lint error (react-hooks/
+    // set-state-in-effect) that this repo was never running.
     // The two fetches land independently so a briefings failure cannot mask
     // a healthy documents section (or vice versa).
     fetchBriefings(signal).then((section) => {
@@ -349,7 +353,14 @@ export function useWorkspaceData(): WorkspaceData {
     return () => controller.abort();
   }, [attempt]);
 
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  // Reset to loading HERE, in the handler, then re-run the effect. Same
+  // observable behaviour as before (retry shows both sections as loading),
+  // without mutating state during the effect body.
+  const retry = useCallback(() => {
+    setBriefings(loadingSection());
+    setDocuments(loadingSection());
+    setAttempt((n) => n + 1);
+  }, []);
 
   const addDocumentToList = useCallback((doc: WorkspaceDocument) => {
     setDocuments((prev) => withRows(prev, [doc, ...prev.rows]));

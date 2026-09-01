@@ -15,6 +15,7 @@
 //     service-role key.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import {
   prepareGeneration,
   runGeneration,
@@ -27,8 +28,8 @@ export const runtime = "nodejs";
 // Generation can run for a while; give the function room past the default.
 export const maxDuration = 300;
 
-function jsonError(status: number, error: string) {
-  return NextResponse.json({ error }, { status });
+function jsonError(status: number, error: string, headers?: HeadersInit) {
+  return NextResponse.json({ error }, { status, headers });
 }
 
 export async function POST(request: Request) {
@@ -40,6 +41,15 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (authError || !user) {
     return jsonError(401, "You need to be signed in to generate a briefing.");
+  }
+
+  // The most expensive endpoint in the product: up to MAX_TURNS model turns
+  // per call. Metered before a single token is spent.
+  const limit = await consumeRateLimit(supabase, "generate");
+  if (!limit.allowed) {
+    return jsonError(429, rateLimitMessage("generate", limit.retryAfterSeconds), {
+      "Retry-After": String(limit.retryAfterSeconds),
+    });
   }
 
   let payload: GenerateRequest;

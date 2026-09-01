@@ -42,7 +42,6 @@ test.describe("auth wall — protected pages redirect unauthenticated visitors",
       expect(next).toBe(path);
       // The final landing is a real 200 sign-in page, not an error.
       expect(resp?.status()).toBeLessThan(400);
-      // eslint-disable-next-line no-console
       console.log(`AUTH-WALL PAGE ${path} → ${page.url()}`);
     });
   }
@@ -115,7 +114,6 @@ test("API routes answer 401 JSON (never an HTML redirect) unauthenticated", asyn
     );
     expect(body.error.length).toBeGreaterThan(0);
   }
-  // eslint-disable-next-line no-console
   console.log("API-AUTH-WALL\n" + rows.join("\n"));
   await api.dispose();
 });

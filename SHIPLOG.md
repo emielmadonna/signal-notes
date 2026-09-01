@@ -282,3 +282,123 @@ Ranked by what the SYSTEM needs next, not features:
    caught by the gate rather than by a user.
 5. DEFEND DNS-REBINDING on fetch-url (resolve-then-pin the IP, or an egress
    allowlist) if this ever leaves Vercel's serverless network.
+
+---
+
+## 5. Post-merge: the upload defect Emiel found, and the finish of a run
+
+Emiel reported three things from live use: uploads failing with 500s, only a
+narrow set of file types accepted, and briefings that "never finish in a timely
+manner". All three are fixed; two of them were real defects a green test suite
+had been hiding.
+
+### 5.1 The 500 (catch #23) — reproduced before it was fixed
+
+The upload suite was green because its four fixtures were clean ASCII. Real
+documents are not. Posting real bytes at the live route reproduced the failure
+twice, verbatim from the server:
+
+    RESULT 500 | nul-byte.txt       | {"error":"Saving the document failed:
+                                      unsupported Unicode escape sequence.
+                                      Nothing was added."}
+    RESULT 500 | lone-surrogate.rtf | {"error":"Saving the document failed:
+                                      Empty or invalid json. Nothing was added."}
+
+Cause, both cases, at the insert:
+
+  * A Postgres `text` value physically cannot contain U+0000. pdf.js emits one
+    for every glyph with no Unicode mapping, which is routine in CID-font PDFs.
+  * An unpaired surrogate breaks `JSON.stringify`, so the request body never
+    parses. RTF's `\uN` escape and pdf.js's UTF-16 handling both produce them.
+
+Fix: `lib/ingest/sanitize.ts`, applied on all three paths that write
+`documents.body` — the upload route, the fetch-url route, and the paste path in
+the add-document sheet. Pinned by `tests/sanitize.test.ts` (9 assertions,
+including the JSON round-trip) and by `e2e/p6-ingestion.spec.ts`, which posts
+both original reproductions at the live route and reads the stored text back.
+
+### 5.2 What we accept (catch #24)
+
+The old route knew five extensions and its 415 message stated them as the limit
+of what is possible. It was the limit of what was implemented. Accepted now:
+
+| Strategy | Formats |
+|---|---|
+| pdf-parse | PDF |
+| mammoth | DOCX |
+| RTF stripper | RTF |
+| HTML → text | HTML, HTM, XHTML |
+| UTF-8 text | TXT, TEXT, LOG, MD, MARKDOWN, MDX, CSV, TSV, JSON, JSONL, NDJSON, XML, YAML, YML, SRT, VTT |
+
+A file with **no extension** is now classified by its bytes (`%PDF`, `PK\x03\x04`,
+`{\rtf`, or "does this decode as text") instead of refused — that is what an
+email attachment or a browser download usually looks like on disk. A format we
+genuinely cannot read gets a named way out ("Word's older .doc format can't be
+read directly. Open it in Word and save it as .docx") rather than a generic no.
+
+The accepted set is one table, `lib/ingest/file-types.ts`. The drop zone's
+`accept` attribute, the text under the icons, and the route's refusal message
+are all generated from it, so they cannot drift apart.
+
+### 5.3 Migration 0004 — live verification (R4)
+
+0003 (the hardening pass) was committed but unapplied; 0004 widens
+`documents_ext_check` to the labels the table above can emit. Both applied via
+`supabase db push --linked`. Live results:
+
+    $ select version, name from supabase_migrations.schema_migrations order by version
+    20260901000001  foundation
+    20260901000002  canvas_schema
+    20260901000003  hardening
+    20260901000004  document_types
+
+    $ select conname, pg_get_constraintdef(oid) from pg_constraint
+        where conrelid='public.documents'::regclass and conname='documents_ext_check'
+    documents_ext_check  CHECK ((ext = ANY (ARRAY['PDF'::text, 'DOCX'::text,
+      'RTF'::text, 'HTML'::text, 'TXT'::text, 'MD'::text, 'CSV'::text,
+      'TSV'::text, 'JSON'::text, 'XML'::text, 'YAML'::text, 'LOG'::text,
+      'SRT'::text, 'VTT'::text, 'WEB'::text])))
+
+`tests/file-types.test.ts` asserts the code's label set against that SQL list, so
+a future format added to one and not the other fails a unit test instead of
+becoming a 500.
+
+### 5.4 The end of a run
+
+Three changes, smallest first:
+
+1. **The reading view opens with the generation log COLLAPSED.** It was expanded
+   by default, so a finished briefing greeted its reader with the machine's
+   narration instead of the briefing. Rule 8 is about the work narrating itself
+   *while it runs* — that is the generation surface's job. Here the replay is
+   evidence, one click away, with every persisted line intact.
+2. **A finished run opens the briefing itself.** The surface reached COMPLETE
+   and then waited for someone to notice a button. A 900 ms beat lets the
+   COMPLETE stamp and the last log line land, then the reading view takes over;
+   leaving early cancels the hand-off, and the button remains for anyone who
+   beats the timer or returns to a finished run.
+3. **The client no longer cancels the stream that keeps the run alive.**
+   `startGeneration` used to `cancel()` the POST response body immediately. That
+   response stream is what holds the serverless invocation open, so the platform
+   was free to reclaim the function mid-run: the briefing stayed `generating`
+   forever, the events route tailed a log that never grew until its 285 s
+   deadline, and the user watched a run that genuinely never finished. It now
+   drains the body in the background instead — one idle socket for the length of
+   the run, and the difference between "you can close this, the run keeps going"
+   being a promise and being true.
+
+This is the failure mode §4.2 flagged as the next thing to harden. It is now
+closed from the client side; a server-side background finalizer for a genuine
+platform freeze is still the right belt-and-braces and stays on that list.
+
+### 5.5 Gate
+
+    PASS   R2 / R3 / R3b / R3c / R5b        PASS   R4 migrations 0001-0004 applied
+    PASS   KEY (service-role, Anthropic)    PASS   R1a RLS on every table
+    PASS   R1b two-org probe (24/24)        PASS   typecheck / lint
+    PASS   unit tests (47)                  PASS   e2e suite (50 passed, 1 skipped)
+    PASS   CONSTITUTION: all checks green
+
+Evidence: `shiplog/evidence/p6-constitution-green.txt`,
+`shiplog/evidence/r1-probe-p6-24checks.txt`, `shiplog/evidence/p6-ingestion/`,
+`shiplog/evidence/p6-generation/`.

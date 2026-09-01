@@ -13,6 +13,7 @@
 // every read is org-scoped by RLS (a cross-org id simply returns nothing → 404).
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { internalError } from "@/lib/errors";
 import type { GenerationEventKind, StreamMessage } from "@/lib/briefing-types";
 
 export const runtime = "nodejs";
@@ -56,7 +57,14 @@ export async function GET(
     .eq("id", id)
     .maybeSingle();
   if (briefingError) {
-    return jsonError(500, `We couldn't load that briefing: ${briefingError.message}`);
+    return jsonError(
+      500,
+      internalError(
+        "We couldn't load that briefing.",
+        "events: briefing lookup failed",
+        briefingError
+      )
+    );
   }
   if (!briefing) {
     return jsonError(404, "This briefing doesn't exist.");
@@ -115,7 +123,11 @@ export async function GET(
           status: "failed",
           wordCount: null,
           citationCount: null,
-          error: `Could not load the activity log: ${rowsError.message}`,
+          error: internalError(
+            "Could not load the activity log.",
+            "events: activity log read failed",
+            rowsError
+          ),
         });
         finish();
         return;
@@ -166,7 +178,11 @@ export async function GET(
             status: "failed",
             wordCount: null,
             citationCount: null,
-            error: `The activity log became unreadable: ${pollError.message}`,
+            error: internalError(
+              "The activity log became unreadable.",
+              "events: activity log poll failed",
+              pollError
+            ),
           });
           break;
         }

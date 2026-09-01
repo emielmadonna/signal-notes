@@ -23,6 +23,13 @@ import {
   type DragEvent,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { resolveOrgId } from "@/lib/org";
+import { internalError } from "@/lib/errors";
+import {
+  ACCEPT_ATTRIBUTE,
+  ACCEPTED_SUMMARY,
+} from "@/lib/ingest/file-types";
+import { sanitizeDocumentText } from "@/lib/ingest/sanitize";
 import type { WorkspaceDocument } from "@/lib/workspace-data";
 import { Sheet, SheetCloseButton } from "@/components/ui-sn/sheet";
 import { FileIcon } from "@/components/ui-sn/file-icon";
@@ -39,6 +46,9 @@ const SANS = "var(--font-space-grotesk), 'Space Grotesk', sans-serif";
 const SERIF = "var(--font-literata), Literata, Georgia, serif";
 const MONO = "var(--font-plex-mono), 'IBM Plex Mono', monospace";
 
+// The six the canvas draws in the drop zone: the rich formats plus WEB. The
+// full accepted set is much wider now (lib/ingest/file-types.ts) and is stated
+// in words under the icons rather than drawn as fourteen glyphs.
 const FILE_TYPES = ["PDF", "DOCX", "TXT", "MD", "RTF", "WEB"] as const;
 
 const KIND_OPTIONS: { label: string; value: DocumentKind }[] = [
@@ -149,26 +159,20 @@ export function AddDocumentSheet({
         return;
       }
 
-      // The user's org (named column, own membership row only).
-      const orgQuery = supabase
-        .from("org_members")
-        .select("org_id")
-        .eq("user_id", user.id)
-        .limit(1);
-      const { data: memberships, error: orgError } = await (signal
-        ? orgQuery.abortSignal(signal)
-        : orgQuery);
-      if (orgError) {
-        setError(`We couldn't look up your organization: ${orgError.message}`);
+      // The user's org — the same deterministic lookup the server routes use
+      // (lib/org.ts), instead of a fourth copy of an unordered limit(1).
+      const org = await resolveOrgId(supabase, user.id, signal ? { signal } : undefined);
+      if (org.error) {
+        setError(org.error.message);
         return;
       }
-      if (!memberships || memberships.length === 0) {
-        setError("Your account isn't in an organization yet, so there is nowhere to put this document.");
-        return;
-      }
-      const orgId = memberships[0].org_id as string;
+      const orgId = org.orgId;
 
-      const body = text.trim();
+      // The same gate the two ingestion routes use: text pasted out of a PDF
+      // viewer carries the very NULs and lone surrogates Postgres refuses,
+      // which arrive as a 500 at the insert rather than as a validation error
+      // (catch #23).
+      const body = sanitizeDocumentText(text).trim();
       const sizeBytes = new TextEncoder().encode(body).length;
 
       const insertQuery = supabase
@@ -189,7 +193,11 @@ export function AddDocumentSheet({
       ).single();
       if (insertError || !doc) {
         setError(
-          `Saving the document failed: ${insertError?.message ?? "no row came back"}. Nothing was added.`
+          internalError(
+            "Saving the document failed, so nothing was added. Try again.",
+            "add-document: document insert failed",
+            insertError ?? new Error("no row came back")
+          )
         );
         return;
       }
@@ -209,7 +217,11 @@ export function AddDocumentSheet({
         : auditQuery);
       if (auditError) {
         setError(
-          `The document was added, but writing its history line failed: ${auditError.message}`
+          internalError(
+            "The document was added, but writing its history line failed.",
+            "add-document: audit insert failed",
+            auditError
+          )
         );
         return;
       }
@@ -399,13 +411,13 @@ export function AddDocumentSheet({
               </div>
             )}
             <MicroFaint style={{ display: "block", marginTop: 6 }}>
-              PDF · DOCX · TXT · MD · RTF · WEB URL · UP TO 20 MB
+              {ACCEPTED_SUMMARY} · WEB URL · UP TO 20 MB
             </MicroFaint>
           </div>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.docx,.txt,.md,.rtf"
+            accept={ACCEPT_ATTRIBUTE}
             onChange={onBrowse}
             disabled={busy}
             style={{ display: "none" }}

@@ -1,0 +1,395 @@
+== Constitution Verifier == 20260901-141331
+PASS   R2 no select("*") or empty select()
+PASS   R3 no empty catch {}
+PASS   R3b (2 recorded exceptions)
+PASS   R3c (10 recorded exceptions)
+PASS   R5b
+PASS   R3b/R3c/R5b conventions (recorded exceptions verified)
+PASS   KEY no SERVICE_ROLE in app code
+PASS   KEY no hardcoded Anthropic key (sk-ant-) anywhere
+PASS   KEY ANTHROPIC_API_KEY only reachable from server code
+PASS   PIN linked project matches pinned ref rqvyiclwhihhsxymenrp
+PASS   R1a RLS enabled + policy present on every public table
+PASS   R4 migration 20260901000001 applied (tracking row present)
+PASS   R4 migration 20260901000002 applied (tracking row present)
+PASS   R4 migration 20260901000003 applied (tracking row present)
+PASS   R4 migration 20260901000004 applied (tracking row present)
+PASS   R1b two-org probe (output: shiplog/evidence/r1-probe-20260901-141331.txt)
+Generating route types...
+✓ Types generated successfully
+PASS   typecheck
+PASS   lint
+TAP version 13
+# Subtest: absent or blank resolves to the default
+ok 1 - absent or blank resolves to the default
+  ---
+  duration_ms: 0.371834
+  type: 'test'
+  ...
+# Subtest: every allowlisted model is accepted verbatim
+ok 2 - every allowlisted model is accepted verbatim
+  ---
+  duration_ms: 0.087166
+  type: 'test'
+  ...
+# Subtest: anything off the list is rejected, not silently defaulted
+ok 3 - anything off the list is rejected, not silently defaulted
+  ---
+  duration_ms: 0.047708
+  type: 'test'
+  ...
+# Subtest: the formats with a real parser keep their strategy
+ok 4 - the formats with a real parser keep their strategy
+  ---
+  duration_ms: 0.836667
+  type: 'test'
+  ...
+# Subtest: the whole plain-text family is accepted, not just .txt and .md
+ok 5 - the whole plain-text family is accepted, not just .txt and .md
+  ---
+  duration_ms: 0.273
+  type: 'test'
+  ...
+# Subtest: alternate spellings collapse onto one label
+ok 6 - alternate spellings collapse onto one label
+  ---
+  duration_ms: 0.056416
+  type: 'test'
+  ...
+# Subtest: the extension match is case-insensitive
+ok 7 - the extension match is case-insensitive
+  ---
+  duration_ms: 0.039209
+  type: 'test'
+  ...
+# Subtest: a format we cannot read gets a NAMED way out, not a generic refusal
+ok 8 - a format we cannot read gets a NAMED way out, not a generic refusal
+  ---
+  duration_ms: 0.12275
+  type: 'test'
+  ...
+# Subtest: REGRESSION: a file with no extension is classified by its BYTES
+ok 9 - REGRESSION: a file with no extension is classified by its BYTES
+  ---
+  duration_ms: 0.122625
+  type: 'test'
+  ...
+# Subtest: sniffed plain text and sniffed markup are told apart
+ok 10 - sniffed plain text and sniffed markup are told apart
+  ---
+  duration_ms: 0.203917
+  type: 'test'
+  ...
+# Subtest: binary that is not a format we know is still refused
+ok 11 - binary that is not a format we know is still refused
+  ---
+  duration_ms: 0.074
+  type: 'test'
+  ...
+# Subtest: extensionOf and fileNameStem handle dotted and undotted names
+ok 12 - extensionOf and fileNameStem handle dotted and undotted names
+  ---
+  duration_ms: 0.157
+  type: 'test'
+  ...
+# Subtest: the accept attribute and the human summary cover the same table
+ok 13 - the accept attribute and the human summary cover the same table
+  ---
+  duration_ms: 0.334458
+  type: 'test'
+  ...
+# Subtest: every label the table emits is one migration 0004 allows
+ok 14 - every label the table emits is one migration 0004 allows
+  ---
+  duration_ms: 0.063666
+  type: 'test'
+  ...
+# [08ca59] resolveOrgId: org_members lookup failed: { message: 'relation "org_members" does not exist' }
+# Subtest: returns the org id and orders deterministically
+ok 15 - returns the org id and orders deterministically
+  ---
+  duration_ms: 0.650375
+  type: 'test'
+  ...
+# Subtest: a user with no membership is a 403, not a crash or a silent null
+ok 16 - a user with no membership is a 403, not a crash or a silent null
+  ---
+  duration_ms: 0.103167
+  type: 'test'
+  ...
+# Subtest: a lookup failure is a 500 that does NOT echo the driver text
+ok 17 - a lookup failure is a 500 that does NOT echo the driver text
+  ---
+  duration_ms: 0.480792
+  type: 'test'
+  ...
+# Subtest: blocks the obvious loopback and private literals
+ok 18 - blocks the obvious loopback and private literals
+  ---
+  duration_ms: 0.626541
+  type: 'test'
+  ...
+# Subtest: blocks the alternate IPv4 spellings the URL parser normalizes
+ok 19 - blocks the alternate IPv4 spellings the URL parser normalizes
+  ---
+  duration_ms: 0.117917
+  type: 'test'
+  ...
+# Subtest: REGRESSION: blocks IPv4-mapped IPv6 literals
+ok 20 - REGRESSION: blocks IPv4-mapped IPv6 literals
+  ---
+  duration_ms: 0.382625
+  type: 'test'
+  ...
+# Subtest: blocks native IPv6 loopback, link-local and unique-local
+ok 21 - blocks native IPv6 loopback, link-local and unique-local
+  ---
+  duration_ms: 0.060542
+  type: 'test'
+  ...
+# Subtest: REGRESSION: does NOT block real domains starting fc/fd
+ok 22 - REGRESSION: does NOT block real domains starting fc/fd
+  ---
+  duration_ms: 0.081375
+  type: 'test'
+  ...
+# Subtest: allows ordinary public hosts
+ok 23 - allows ordinary public hosts
+  ---
+  duration_ms: 0.044541
+  type: 'test'
+  ...
+# Subtest: blocks reserved special-use names
+ok 24 - blocks reserved special-use names
+  ---
+  duration_ms: 0.074625
+  type: 'test'
+  ...
+# Subtest: an unparseable IPv6 literal fails closed
+ok 25 - an unparseable IPv6 literal fails closed
+  ---
+  duration_ms: 0.035292
+  type: 'test'
+  ...
+# rate limiter unavailable for bucket "generate" — ALLOWING this request; if migration 0003 is unapplied, apply it: function consume_rate_limit does not exist
+# rate limiter returned an unreadable row for bucket "upload" — ALLOWING this request.
+# Subtest: allows a request the RPC says is inside the ceiling
+ok 26 - allows a request the RPC says is inside the ceiling
+  ---
+  duration_ms: 0.612375
+  type: 'test'
+  ...
+# Subtest: denies, and reports a retry delay, when the ceiling is hit
+ok 27 - denies, and reports a retry delay, when the ceiling is hit
+  ---
+  duration_ms: 0.074542
+  type: 'test'
+  ...
+# Subtest: a zero retry delay is reported as at least one second
+ok 28 - a zero retry delay is reported as at least one second
+  ---
+  duration_ms: 0.048
+  type: 'test'
+  ...
+# Subtest: FAILS OPEN when the limiter itself errors (documented trade)
+ok 29 - FAILS OPEN when the limiter itself errors (documented trade)
+  ---
+  duration_ms: 0.274958
+  type: 'test'
+  ...
+# Subtest: FAILS OPEN on an unreadable row rather than guessing
+ok 30 - FAILS OPEN on an unreadable row rather than guessing
+  ---
+  duration_ms: 0.058917
+  type: 'test'
+  ...
+# Subtest: every bucket produces a human sentence naming a wait
+ok 31 - every bucket produces a human sentence naming a wait
+  ---
+  duration_ms: 0.10625
+  type: 'test'
+  ...
+# Subtest: REGRESSION: an out-of-range numeric entity does not throw
+ok 32 - REGRESSION: an out-of-range numeric entity does not throw
+  ---
+  duration_ms: 0.90875
+  type: 'test'
+  ...
+# Subtest: an undecodable entity is left as the literal text the page sent
+ok 33 - an undecodable entity is left as the literal text the page sent
+  ---
+  duration_ms: 0.064584
+  type: 'test'
+  ...
+# Subtest: lone surrogates are refused rather than producing broken text
+ok 34 - lone surrogates are refused rather than producing broken text
+  ---
+  duration_ms: 0.04175
+  type: 'test'
+  ...
+# Subtest: valid entities still decode, including astral ones
+ok 35 - valid entities still decode, including astral ones
+  ---
+  duration_ms: 0.072916
+  type: 'test'
+  ...
+# Subtest: extracts prose and drops scripts, styles and markup
+ok 36 - extracts prose and drops scripts, styles and markup
+  ---
+  duration_ms: 0.228875
+  type: 'test'
+  ...
+# Subtest: a page with no readable text yields an empty string, not a throw
+ok 37 - a page with no readable text yields an empty string, not a throw
+  ---
+  duration_ms: 0.03725
+  type: 'test'
+  ...
+# Subtest: a title-less page reports a null title
+ok 38 - a title-less page reports a null title
+  ---
+  duration_ms: 0.084958
+  type: 'test'
+  ...
+# Subtest: REGRESSION: a NUL byte is removed (Postgres text cannot hold one)
+ok 39 - REGRESSION: a NUL byte is removed (Postgres text cannot hold one)
+  ---
+  duration_ms: 0.459541
+  type: 'test'
+  ...
+# Subtest: REGRESSION: a lone surrogate becomes U+FFFD, so JSON can encode it
+ok 40 - REGRESSION: a lone surrogate becomes U+FFFD, so JSON can encode it
+  ---
+  duration_ms: 0.132
+  type: 'test'
+  ...
+# Subtest: a stray LOW surrogate is caught too, not just a high one
+ok 41 - a stray LOW surrogate is caught too, not just a high one
+  ---
+  duration_ms: 0.040167
+  type: 'test'
+  ...
+# Subtest: a VALID surrogate pair is left completely alone
+ok 42 - a VALID surrogate pair is left completely alone
+  ---
+  duration_ms: 0.038375
+  type: 'test'
+  ...
+# Subtest: tabs and newlines survive; other control characters do not
+ok 43 - tabs and newlines survive; other control characters do not
+  ---
+  duration_ms: 0.091792
+  type: 'test'
+  ...
+# Subtest: line endings are normalized to \\n
+ok 44 - line endings are normalized to \\n
+  ---
+  duration_ms: 0.02925
+  type: 'test'
+  ...
+# Subtest: sanitizing does NOT trim — the caller decides what empty means
+ok 45 - sanitizing does NOT trim — the caller decides what empty means
+  ---
+  duration_ms: 0.066708
+  type: 'test'
+  ...
+# Subtest: a document that is ONLY unusable characters sanitizes to empty
+ok 46 - a document that is ONLY unusable characters sanitizes to empty
+  ---
+  duration_ms: 0.032375
+  type: 'test'
+  ...
+# Subtest: sanitizeLine collapses whitespace and strips the same characters
+ok 47 - sanitizeLine collapses whitespace and strips the same characters
+  ---
+  duration_ms: 0.205041
+  type: 'test'
+  ...
+1..47
+# tests 47
+# suites 0
+# pass 47
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 141.747666
+PASS   unit tests
+
+Running 51 tests using 1 worker
+
+  ✓   1 e2e/p2-visual.spec.ts:10:5 › sign-in surface: populated, error, expired — both themes (1.6s)
+  ✓   2 e2e/p2-visual.spec.ts:33:5 › workspace shell live: org name, sections, account menu, theme toggle (2.2s)
+  ✓   3 e2e/p2-visual.spec.ts:63:5 › not-found + auth wall + 768px (1.9s)
+  ✓   4 e2e/p3-documents.spec.ts:16:5 › workspace renders real seeded documents and briefings state (1.5s)
+  ✓   5 e2e/p3-documents.spec.ts:26:5 › add document: missing-title state, then paste path saves (3.3s)
+  ✓   6 e2e/p3-documents.spec.ts:46:5 › upload path: TXT file through the sheet's browse input (2.8s)
+  ✓   7 e2e/p3-documents.spec.ts:57:5 › document sheet: body, file history shows UPLOADED/created line (1.9s)
+  ✓   8 e2e/p3-documents.spec.ts:68:5 › rename via selection bar: working state, SAVED, optimistic tile (3.8s)
+  ✓   9 e2e/p3-documents.spec.ts:85:5 › delete via selection bar: confirm sheet, working state, tile gone (3.3s)
+  ✓  10 e2e/p3-documents.spec.ts:102:5 › search filters both sections with canvas subs (1.5s)
+  -  11 e2e/p3-documents.spec.ts:109:5 › cross-org document id renders not-found (isolation's UX face)
+  ✓  12 e2e/p4-briefings.spec.ts:11:5 › composer: model picker, zero-selected copy, pick + generate (1.6s)
+  ✓  13 e2e/p4-briefings.spec.ts:30:5 › live generation: stream a real briefing to completion (60.0s)
+  ✓  14 e2e/p4-briefings.spec.ts:48:5 › resume view: a complete briefing replays its log (3.6s)
+  ✓  15 e2e/p4-briefings.spec.ts:57:5 › reading view: citations tooltip, grounding chips, feedback persists, log + audit (7.3s)
+  ✓  16 e2e/p5-failures.spec.ts:32:5 › forced 500 on documents → error state, not fake-empty; briefings stay healthy (1.7s)
+  ✓  17 e2e/p5-failures.spec.ts:60:5 › forced 500 on briefings → error state; documents stay healthy (1.9s)
+  ✓  18 e2e/p5-failures.spec.ts:78:5 › retry recovers: unroute, click Try again → the section repopulates (1.9s)
+  ✓  19 e2e/p5-failures.spec.ts:99:5 › aborted documents fetch → error state, never a stale/empty render (9.1s)
+  ✓  20 e2e/p5-failures.spec.ts:113:5 › nonexistent document id → not-found sheet (not error, not blank) (1.9s)
+  ✓  21 e2e/p5-failures.spec.ts:125:5 › nonexistent briefing id → not-found sheet (not error, not blank) (2.2s)
+  ✓  22 e2e/p5-isolation.spec.ts:32:5 › Marta (org B) deep-linking an org-A document id → not-found, never org-A content (3.0s)
+  ✓  23 e2e/p5-isolation.spec.ts:59:5 › Marta (org B) deep-linking an org-A briefing id → not-found, never org-A content (4.4s)
+  ✓  24 e2e/p5-isolation.spec.ts:77:5 › Marta (org B) deep-linking an org-A briefing /generating id → not-found (3.8s)
+768-OVERFLOW signin: scrollWidth=768 clientWidth=768 (tol 2)
+  ✓  25 e2e/p5-responsive.spec.ts:34:5 › sign-in at 768px holds (260ms)
+768-OVERFLOW workspace: scrollWidth=768 clientWidth=768 (tol 2)
+  ✓  26 e2e/p5-responsive.spec.ts:43:5 › workspace at 768px holds (1.5s)
+768-OVERFLOW add-document: scrollWidth=768 clientWidth=768 (tol 2)
+  ✓  27 e2e/p5-responsive.spec.ts:54:5 › add-document at 768px holds (1.4s)
+768-OVERFLOW document-sheet: scrollWidth=768 clientWidth=768 (tol 2)
+  ✓  28 e2e/p5-responsive.spec.ts:64:5 › document sheet at 768px holds (3.1s)
+768-OVERFLOW composer: scrollWidth=768 clientWidth=768 (tol 2)
+  ✓  29 e2e/p5-responsive.spec.ts:75:5 › composer at 768px holds (1.6s)
+768-OVERFLOW generation: scrollWidth=768 clientWidth=768 (tol 2)
+  ✓  30 e2e/p5-responsive.spec.ts:85:5 › generation surface at 768px holds (complete briefing /generating) (3.6s)
+768-OVERFLOW reading-view: scrollWidth=768 clientWidth=768 (tol 2)
+  ✓  31 e2e/p5-responsive.spec.ts:98:5 › reading view at 768px holds (3.6s)
+AUTH-WALL PAGE / → http://localhost:3100/signin?next=%2F
+  ✓  32 e2e/p5-routes.spec.ts:36:9 › auth wall — protected pages redirect unauthenticated visitors › unauthenticated / → /signin?next= (214ms)
+AUTH-WALL PAGE /documents/new → http://localhost:3100/signin?next=%2Fdocuments%2Fnew
+  ✓  33 e2e/p5-routes.spec.ts:36:9 › auth wall — protected pages redirect unauthenticated visitors › unauthenticated /documents/new → /signin?next= (214ms)
+AUTH-WALL PAGE /documents/00000000-0000-0000-0000-000000000000 → http://localhost:3100/signin?next=%2Fdocuments%2F00000000-0000-0000-0000-000000000000
+  ✓  34 e2e/p5-routes.spec.ts:36:9 › auth wall — protected pages redirect unauthenticated visitors › unauthenticated /documents/00000000-0000-0000-0000-000000000000 → /signin?next= (214ms)
+AUTH-WALL PAGE /compose → http://localhost:3100/signin?next=%2Fcompose
+  ✓  35 e2e/p5-routes.spec.ts:36:9 › auth wall — protected pages redirect unauthenticated visitors › unauthenticated /compose → /signin?next= (213ms)
+AUTH-WALL PAGE /briefings/00000000-0000-0000-0000-000000000000 → http://localhost:3100/signin?next=%2Fbriefings%2F00000000-0000-0000-0000-000000000000
+  ✓  36 e2e/p5-routes.spec.ts:36:9 › auth wall — protected pages redirect unauthenticated visitors › unauthenticated /briefings/00000000-0000-0000-0000-000000000000 → /signin?next= (221ms)
+AUTH-WALL PAGE /briefings/00000000-0000-0000-0000-000000000000/generating → http://localhost:3100/signin?next=%2Fbriefings%2F00000000-0000-0000-0000-000000000000%2Fgenerating
+  ✓  37 e2e/p5-routes.spec.ts:36:9 › auth wall — protected pages redirect unauthenticated visitors › unauthenticated /briefings/00000000-0000-0000-0000-000000000000/generating → /signin?next= (223ms)
+  ✓  38 e2e/p5-routes.spec.ts:50:5 › sign-in page itself loads unauthenticated (212ms)
+  ✓  39 e2e/p5-routes.spec.ts:59:5 › a signed-in visit to /signin bounces to the workspace (1.7s)
+API-AUTH-WALL
+POST /api/documents/upload → 401 application/json :: {"error":"You need to be signed in to add documents."}
+POST /api/documents/fetch-url → 401 application/json :: {"error":"You need to be signed in to add documents."}
+POST /api/briefings/generate → 401 application/json :: {"error":"You need to be signed in to generate a briefing."}
+GET /api/briefings/00000000-0000-0000-0000-000000000000/events → 401 application/json :: {"error":"You need to be signed in to watch a briefing."}
+  ✓  40 e2e/p5-routes.spec.ts:70:5 › API routes answer 401 JSON (never an HTML redirect) unauthenticated (58ms)
+  ✓  41 e2e/p5-theme.spec.ts:17:5 › workspace: real toggle flips data-theme both ways and persists across reload (2.2s)
+  ✓  42 e2e/p5-theme.spec.ts:42:5 › reading view: both themes apply on <html>, persist across reload, and are photographed (5.1s)
+  ✓  43 e2e/p5-upload.spec.ts:24:7 › upload TXT: parses to a real document with extracted text (4.8s)
+  ✓  44 e2e/p5-upload.spec.ts:24:7 › upload PDF: parses to a real document with extracted text (4.8s)
+  ✓  45 e2e/p5-upload.spec.ts:24:7 › upload DOCX: parses to a real document with extracted text (4.8s)
+  ✓  46 e2e/p5-upload.spec.ts:24:7 › upload RTF: parses to a real document with extracted text (4.9s)
+  ✓  47 e2e/p5-upload.spec.ts:59:5 › upload rejects an unsupported type (415) with a human message (1.4s)
+  ✓  48 e2e/p6-generation-handoff.spec.ts:17:5 › a finished run opens the briefing by itself (1.5m)
+  ✓  49 e2e/p6-generation-handoff.spec.ts:60:5 › the reading view opens with the generation log collapsed (3.7s)
+  ✓  50 e2e/p6-ingestion.spec.ts:127:5 › ingestion: every supported type lands, every refusal explains itself (11.5s)
+  ✓  51 e2e/verify-surfaces.spec.ts:9:5 › capture every surface at 1440 (17.9s)
+
+  1 skipped
+  50 passed (4.9m)
+PASS   e2e suite (playwright)
+
+PASS   CONSTITUTION: all checks green. Evidence: shiplog/evidence/constitution-20260901-141331.txt
