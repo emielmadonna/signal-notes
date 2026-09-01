@@ -7,6 +7,16 @@
 // instances. The ceilings live in the SQL function, not here and not in the
 // request — the caller only names a bucket.
 //
+// KNOWN WEAKNESS, stated here rather than discovered later: these are FIXED
+// windows, not sliding ones. A caller who spends the ceiling at the end of one
+// window and again at the start of the next gets up to 2x the nominal rate in
+// a short burst. (Seen directly while testing: a probe that began 295 s into a
+// 300 s window reported retry_after=5s, so a second full allowance was five
+// seconds away.) That is the standard trade for a counter costing one
+// round-trip and no background state, and the ceilings are set with the burst
+// in mind. A sliding window means storing per-request timestamps — a different
+// design, not a tweak.
+//
 // FAILURE MODE, stated rather than implied: if the limiter ITSELF errors (the
 // migration is not applied yet, the RPC is unreachable), this fails OPEN and
 // logs loudly. That is a deliberate trade: this control guards spend and

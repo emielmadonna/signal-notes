@@ -1,5 +1,5 @@
 CHANGE CARD #015
-STATUS: PENDING — awaiting Emiel. Migration 0003 is committed but NOT APPLIED.
+STATUS: PENDING — awaiting Emiel. Migration 0003 is APPLIED (verified live).
 
 WHAT CHANGED: the remediation pass from an adversarial audit of the whole
 repository. Seventeen findings, in three groups.
@@ -114,3 +114,100 @@ AUDITOR: not yet reviewed.
 WHAT BREAKS IF THIS IS WRONG: the SSRF and forgery fixes are the load-bearing
 ones. If private-address.ts is wrong the fetcher reaches internal addresses; if
 the 0003 trigger is not applied the audit trail's own comment stays a lie.
+
+
+---
+
+ROUND 2 — a second adversarial audit, run over the merged tree (this work plus
+the concurrent ingestion work). The most serious finding was in round 1's own
+code.
+
+WHAT CHANGED:
+  - DENIAL OF SERVICE, introduced by round 1 and fixed here. The markup
+    stripping in lib/html/readable-text.ts used lazy unbounded regexes
+    (`<script>[\s\S]*?</script>`, `<!--[\s\S]*?-->`, `<title>…</title>`). Every
+    opening token that never closes makes the engine scan to end-of-input and
+    fail, then repeat at the next one — O(openers x length). Measured on that
+    code: a benign 5 MB page took 134 ms; 60k unclosed "<script>" plus a 2 MB
+    tail took 19.6 s; and a payload INSIDE fetch-url's own 5 MB cap DID NOT
+    FINISH IN 600 SECONDS. The blast radius had just grown, because the
+    concurrent work added .html file upload at a 20 MB cap through the same
+    function, and a self-hosted deployment serves every user from one Node
+    process. Replaced with a single forward pass that records absent closing
+    tokens instead of re-searching for them: the 600-second payload now takes
+    17 ms, and a 19 MB benign page strips in 728 ms. Six regression tests pin
+    it, including loose (multi-second) time budgets that fail on a return to
+    quadratic behaviour rather than on a slow CI box.
+  - maxDuration = 60 declared on both ingestion routes. Neither had one, so a
+    pathological input ran until the platform's default killed it — and a
+    platform kill returns an opaque non-JSON error page, breaking these
+    routes' own promise that a non-2xx always carries a readable `error` (R3).
+  - REVERTED round 1's activity-log batching. Round 1 claimed ~200 blocking
+    round-trips costing 10-15 s. Measured against the real table: a finished
+    run persists 21-34 rows, not ~200, and the mean gap between them is 1.83 s
+    against the 120 ms flush window — only 5 of 20 gaps in a sampled run fell
+    inside it. So ~90 lines of buffer/timer/flush-chain machinery coalesced
+    about five inserts, on the path carrying the product's headline feature.
+    The measurement is now recorded in the code so the next person can
+    re-derive the decision instead of re-doing the optimisation.
+  - lib/ingest/sanitize.ts no longer uses regex lookbehind. It is imported by
+    a CLIENT component, so the literal is parsed by the browser; lookbehind
+    only reached Safari in 16.4, and anywhere older it is a SyntaxError at
+    module parse time that takes down the whole chunk. Rewritten to match a
+    well-formed surrogate pair first and capture only the unpaired case. The
+    existing sanitize tests pass unchanged, which is the equivalence proof.
+  - lib/ingest/file-types.ts pointed at "migration 0003" twice for the ext
+    widening; that is 0004 (0003 is this card's hardening migration). Dead
+    pointers are catches #20 and #21 in this project's own log.
+  - lib/rate-limit.ts now admits its fixed-window burst: a caller spending the
+    ceiling at the end of one window and again at the start of the next gets
+    up to 2x the nominal rate briefly. Seen directly while testing.
+  - e2e/p5-upload.spec.ts cleanup assertion fixed. It asserted
+    `main.getByText("e2e-upload")).toHaveCount(0)` after deleting the
+    document — which contradicts a deliberate product guarantee: audit lines
+    SURVIVE the deletion of what they describe (D07; migration 0002 does it
+    with `on delete set null`). All four fixtures share the stem, nothing can
+    remove audit rows through the app (no DELETE policy, by design), so the
+    assertion drifted closer to failing with every run the suite ever made.
+    At 89 surviving rows it failed. It was never testing deletion; it was
+    testing that the audit trail had not yet grown visible. Now asserts the
+    tile's own control is gone.
+
+  - e2e/p6-generation-handoff.spec.ts label assertion made exact. It asserted
+    `reader.getByText("GROUNDED IN")` inside the READING VIEW, whose body is
+    model-generated prose, and getByText matches substrings. A run that wrote
+    "Because the source is limited, this briefing is grounded in ..." made the
+    locator resolve to two elements and the test died on a strict-mode
+    violation. The same suite had passed minutes earlier — the briefing simply
+    used different words. Any UI label asserted loosely on that surface can be
+    broken at random by the product's own output.
+
+TWO TEST BUGS, BOTH REAL, BOTH FOUND BY RUNNING THE SUITE REPEATEDLY:
+  Neither was flakiness in the usual sense — each had a specific cause that
+  would recur, and each was found only because the suite was run four times in
+  a row rather than once. The upload-cleanup assertion degraded monotonically
+  with the audit trail's size; the handoff assertion depended on which words
+  the model chose. A suite run once per change would have shown both as
+  "intermittent" and taught nobody anything.
+
+KNOWN AND DELIBERATELY NOT FIXED (stated, not hidden):
+  - Content sniffing maps any ZIP to DOCX, so an EXTENSIONLESS .xlsx gets a
+    generic mammoth failure instead of the named refusal that exists for the
+    .xlsx extension. Reading the zip's central directory to tell them apart is
+    a real change to someone else's actively-edited module for a narrow case.
+  - UTF-16 text files are refused by looksLikeText (~50% NUL bytes against a
+    5% threshold) though they are readable text and common on Windows. Fixing
+    it means BOM detection plus a decode path, not a threshold tweak.
+
+PROOF OF DONE (round 2):
+  - [PASS] npx tsc --noEmit; npm run lint (0 errors, 0 warnings)
+  - [PASS] npm test — 53/53, incl. 6 new DoS regressions and the 7 original
+    extractor tests unchanged (behaviour-preservation evidence)
+  - [PASS] npx tsx scripts/check-conventions.ts — and it CAUGHT THIS WORK:
+    reverting the batching removed a catch block whose exception was recorded,
+    and the stale-entry detector failed the build until the entry was removed.
+  - [PASS] npm run constitution — fully green, all four migrations tracked
+  - [PASS] adversarial probes re-run live: audit-actor forgery blocked
+    (requested 'SYSTEM' and 'ANA', both stored as 'ADMIN'); rate limiter
+    enforces 20/5min on fetch-url with p_limit not injectable, unknown bucket
+    failing closed, and the counter table unreachable

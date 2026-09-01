@@ -59,3 +59,69 @@ test("a page with no readable text yields an empty string, not a throw", () => {
 test("a title-less page reports a null title", () => {
   assert.equal(extractReadableText("<p>hi</p>").pageTitle, null);
 });
+
+// ---------------------------------------------------------------------------
+// Denial-of-service regressions.
+//
+// The original implementation stripped markup with lazy, unbounded regexes
+// (`<script>[\s\S]*?</script>`, `<!--[\s\S]*?-->`, `<title>…</title>`). Every
+// opening token that never closes made the engine scan to end-of-input and
+// fail, then repeat at the next one — O(openers x length). Measured on that
+// code: 60k unclosed "<script>" plus a 2 MB tail took 19.6 s, and the 5 MB
+// case below DID NOT FINISH IN 600 SECONDS. Upload accepts 20 MB of .html and
+// neither ingestion route sets a maxDuration, so one request could stall a
+// self-hosted server for every user.
+//
+// These budgets are deliberately loose (seconds, against a ~20 ms reality) so
+// they fail on a return to quadratic behaviour, not on a slow CI box.
+// ---------------------------------------------------------------------------
+
+function millisFor(html: string): number {
+  const started = Date.now();
+  extractReadableText(html);
+  return Date.now() - started;
+}
+
+test("REGRESSION: unclosed <script> tags cannot blow up the extractor", () => {
+  // Inside fetch-url's own 5 MB cap. Old code: >600_000 ms. New code: ~17 ms.
+  const payload = "<script>".repeat(150_000) + "x".repeat(2_500_000);
+  assert.ok(millisFor(payload) < 5_000, "5 MB of unclosed <script> must not hang");
+});
+
+test("REGRESSION: unclosed comments and titles cannot blow up the extractor", () => {
+  assert.ok(
+    millisFor("<!--".repeat(200_000) + "y".repeat(5_000_000)) < 5_000,
+    "unterminated comments must not hang"
+  );
+  assert.ok(
+    millisFor("<title>".repeat(200_000) + "z".repeat(5_000_000)) < 5_000,
+    "unterminated titles must not hang"
+  );
+});
+
+test("a 19 MB benign page (the upload cap) stays well inside budget", () => {
+  assert.ok(millisFor("<div>hello</div>".repeat(1_200_000)) < 10_000);
+});
+
+test("content of a raw-text element is dropped, not emitted as prose", () => {
+  const { text } = extractReadableText(
+    "<p>before</p><script>var secret = 1;</script><p>after</p>"
+  );
+  assert.match(text, /before/);
+  assert.match(text, /after/);
+  assert.doesNotMatch(text, /secret/);
+});
+
+test("a tag that merely starts like a raw-text element is still unwrapped", () => {
+  // <scriptish> is not <script>; its text must survive.
+  const { text } = extractReadableText("<scriptish>keep me</scriptish>");
+  assert.match(text, /keep me/);
+});
+
+test("text after an unclosed <script> is still recovered", () => {
+  // The old regex simply failed to match and left the text in place; the
+  // scanner must not silently swallow the rest of the document instead.
+  const { text } = extractReadableText("<p>alpha</p><script><p>beta</p>");
+  assert.match(text, /alpha/);
+  assert.match(text, /beta/);
+});

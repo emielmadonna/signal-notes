@@ -7,7 +7,7 @@
     },
     {
       "file": "components/add-document/add-document-sheet.tsx",
-      "signature": "const auditQuery = supabase.from(\"audit_events\").insert({ org_id: orgId, document_id: doc.id, event: \"UPLOADED\", detail: `Pasted text · ${sizeBytes} bytes`, act",
+      "signature": "const auditQuery = supabase.from(\"audit_events\").insert({ org_id: orgId, document_id: doc.id, event: \"UPLOADED\", detail: `Pasted text \u00b7 ${sizeBytes} bytes`, act",
       "reason": "Same deferred-query pattern as the documents insert above: `auditError` is destructured and surfaced two statements later. The error IS handled."
     }
   ],
@@ -24,7 +24,7 @@
     },
     {
       "file": "components/add-document/upload-client.ts",
-      "signature": "// Body was not JSON (proxy page, empty body). Fall through to the // status-based message below — the status line is the backstop.",
+      "signature": "// Body was not JSON (proxy page, empty body). Fall through to the // status-based message below \u2014 the status line is the backstop.",
       "reason": "Identical to the add-document sheet's parse guard: a non-JSON error body falls through to the status-line message, which is the stated backstop."
     },
     {
@@ -38,14 +38,9 @@
       "reason": "localStorage READ in the same blocked-storage case. Backstop: the server-rendered theme from the cookie is already applied and is left in place, which is the correct fallback."
     },
     {
-      "file": "lib/ai/generation.ts",
-      "signature": "// Already failing; the note below is the truthful record.",
-      "reason": "drainEvents() inside the failure path: the run is already failing and its message is composed. Backstop: the failure note written directly to generation_events immediately below, plus the briefings.status='failed' update — both of which report their own errors."
-    },
-    {
       "file": "lib/supabase/server.ts",
       "signature": "// setAll was called from a Server Component, where Next.js forbids // writing cookies. Safe to ignore: middleware.ts refreshes the // session cookies on every ",
-      "reason": "@supabase/ssr's documented pattern: cookie writes from a Server Component throw by design in Next. Backstop stated in the comment and real — middleware.ts refreshes session cookies on every matched request."
+      "reason": "@supabase/ssr's documented pattern: cookie writes from a Server Component throw by design in Next. Backstop stated in the comment and real \u2014 middleware.ts refreshes session cookies on every matched request."
     },
     {
       "file": "lib/use-generation-stream.ts",
@@ -55,7 +50,7 @@
     {
       "file": "lib/use-generation-stream.ts",
       "signature": "// reader already released (aborted mid-read); nothing to do.",
-      "reason": "reader.cancel() on an already-released reader during abort. Backstop: none needed — the intended post-condition (the reader is not consuming) already holds, which is why the call was made."
+      "reason": "reader.cancel() on an already-released reader during abort. Backstop: none needed \u2014 the intended post-condition (the reader is not consuming) already holds, which is why the call was made."
     },
     {
       "file": "lib/use-generation-stream.ts",

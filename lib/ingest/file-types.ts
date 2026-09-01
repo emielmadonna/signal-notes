@@ -10,13 +10,15 @@
 // Anything we cannot read is refused with a message that says what to do
 // instead, never a generic "unsupported".
 //
-// `label` is what lands in documents.ext (migration 0003 widened the CHECK
+// `label` is what lands in documents.ext (migration 0004 widened the CHECK
 // constraint to exactly this set) and what the FileIcon prints.
+// (0003 is the hardening migration — audit-actor trigger, updated_at, rate
+// limits — and has nothing to do with document types.)
 
 /** How the upload route turns bytes into text. */
 export type ParseStrategy = "pdf" | "docx" | "rtf" | "html" | "text";
 
-/** The value stored in documents.ext — keep in sync with migration 0003. */
+/** The value stored in documents.ext — keep in sync with migration 0004. */
 export type ExtLabel =
   | "PDF"
   | "DOCX"

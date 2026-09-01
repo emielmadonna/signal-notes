@@ -49,22 +49,27 @@ import {
 export const MAX_SOURCE_DOCUMENTS = 12;
 
 // ---------------------------------------------------------------------------
-// Batched persistence of the activity log.
+// Persistence of the activity log — deliberately one row at a time.
 //
-// Every activity-log line is still persisted BEFORE it is forwarded to the
-// client — that is what lets a run outlive the browser. What changed is the
-// granularity: emit() used to await one INSERT per ~180-character chunk, so a
-// 6000-word briefing spent 200 serial round-trips (10-15 s of pure database
-// latency) inside the user-visible stream. Lines are now buffered for a few
-// milliseconds and written as ONE multi-row insert, which keeps the ordering
-// and the persist-then-forward guarantee while cutting the round-trips by an
-// order of magnitude.
+// An earlier pass replaced this with a buffer + timer + serialized flush chain
+// (~90 lines) on the theory that a briefing produced ~200 log lines and so
+// ~200 blocking round-trips, costing 10-15 s inside the user-visible stream.
+// Then the theory was measured against the real table:
+//
+//   * a finished run persists 21-34 generation_events rows, not ~200;
+//   * the mean gap between consecutive rows is 1.83 s, and only 5 of 20 gaps
+//     in a sampled run fell under the 120 ms batch window.
+//
+// So the batching coalesced roughly five inserts per run. That is not worth a
+// hand-rolled flush chain on the path that carries the product's headline
+// feature — the extra machinery is more likely to reorder or drop a line than
+// the latency was to be noticed. Reverted to the obvious version.
+//
+// The numbers are written down so the next person can re-derive the decision
+// instead of re-doing the optimisation: if a run ever does produce hundreds of
+// rows, or the gap collapses toward the flush window, batching becomes correct
+// and this comment is the evidence for changing it.
 // ---------------------------------------------------------------------------
-
-/** Flush once this many lines are waiting… */
-const EVENT_BATCH_MAX = 24;
-/** …or this long after the first one arrives, whichever comes first. */
-const EVENT_BATCH_MS = 120;
 
 // ---------------------------------------------------------------------------
 // Errors distinguishable in the failure path.
@@ -410,95 +415,37 @@ export async function runGeneration(
   let partialText = "";
   let clientGone = false;
 
-  // ---- the batching writer -------------------------------------------------
-  // Lines are buffered briefly and written as one multi-row insert, then
-  // forwarded in the same order. Persist-then-forward is unchanged; only the
-  // number of round-trips is. A failed flush is remembered and re-thrown from
-  // the next emit() or from drain(), so the run still fails honestly.
-  type PendingEvent = { kind: GenerationEventKind; content: string };
-  let buffer: PendingEvent[] = [];
-  let flushTimer: ReturnType<typeof setTimeout> | null = null;
-  let flushChain: Promise<void> = Promise.resolve();
-  let persistFailure: PersistError | null = null;
-
-  const forward = (
-    kind: GenerationEventKind,
-    content: string,
-    id: number,
-    at: string
-  ) => {
-    if (sink === null || clientGone) return;
-    try {
-      sink({ type: "event", id, kind, content, at });
-    } catch {
-      clientGone = true; // client disconnected; keep persisting to the DB
-    }
-  };
-
-  const flush = async (): Promise<void> => {
-    if (persistFailure !== null || buffer.length === 0) return;
-    const batch = buffer;
-    buffer = [];
-    const { data, error } = await supabase
-      .from("generation_events")
-      .insert(
-        batch.map((e) => ({
-          briefing_id: briefingId,
-          org_id: orgId,
-          kind: e.kind,
-          content: e.content,
-        }))
-      )
-      .select("id, created_at"); // named columns (R2)
-    const rows = (data ?? []) as { id: number; created_at: string }[];
-    if (error || rows.length !== batch.length) {
-      // Never forward what we could not prove we stored.
-      persistFailure = new PersistError(
-        error
-          ? `a log line did not persist (reference ${logInternal("generation: generation_events batch insert failed", error)})`
-          : `a log line did not persist (${rows.length} of ${batch.length} rows came back)`
-      );
-      return;
-    }
-    // Postgres returns a multi-row insert in the order it was given, so index
-    // i of the result is index i of the batch.
-    for (let i = 0; i < batch.length; i++) {
-      forward(batch[i].kind, batch[i].content, rows[i].id, rows[i].created_at);
-    }
-  };
-
-  const queueFlush = () => {
-    if (flushTimer !== null) {
-      clearTimeout(flushTimer);
-      flushTimer = null;
-    }
-    flushChain = flushChain.then(flush); // serialized: ordering is preserved
-  };
-
-  const scheduleFlush = () => {
-    if (flushTimer !== null) return;
-    flushTimer = setTimeout(() => {
-      flushTimer = null;
-      flushChain = flushChain.then(flush);
-    }, EVENT_BATCH_MS);
-  };
-
-  /** Wait for everything buffered to be stored + forwarded; throw on failure. */
-  const drainEvents = async (): Promise<void> => {
-    queueFlush();
-    await flushChain;
-    if (persistFailure !== null) throw persistFailure;
-  };
-
+  // Persist one generation_events row, then (best-effort) forward it live. A
+  // persistence failure throws — the run fails honestly rather than streaming
+  // a line it could not prove it stored. A forward failure only means the
+  // client left; persistence already happened, so the run continues, which is
+  // what lets a briefing outlive the browser that started it.
   const emit = async (
     kind: GenerationEventKind,
     content: string
   ): Promise<void> => {
-    if (persistFailure !== null) throw persistFailure;
     if (kind === "text_delta") partialText += content;
-    buffer.push({ kind, content });
-    if (buffer.length >= EVENT_BATCH_MAX) queueFlush();
-    else scheduleFlush();
+    const { data, error } = await supabase
+      .from("generation_events")
+      .insert({ briefing_id: briefingId, org_id: orgId, kind, content })
+      .select("id, created_at") // named columns (R2)
+      .single();
+    if (error || !data) {
+      throw new PersistError(
+        `a log line did not persist (reference ${logInternal(
+          "generation: generation_events insert failed",
+          error ?? new Error("no row came back")
+        )})`
+      );
+    }
+    const row = data as { id: number; created_at: string };
+    if (sink !== null && !clientGone) {
+      try {
+        sink({ type: "event", id: row.id, kind, content, at: row.created_at });
+      } catch {
+        clientGone = true; // client disconnected; keep persisting to the DB
+      }
+    }
   };
 
   const auditLine = async (event: string, detail: string): Promise<void> => {
@@ -543,12 +490,6 @@ export async function runGeneration(
         : `Checked citations against the sources — ${verified} of ${total} verified.`
     );
 
-    // Every buffered line must be stored before the briefing is marked
-    // complete — otherwise a COMPLETE row could reference a log that is still
-    // in memory, and a crash here would leave a finished briefing with a
-    // truncated replay.
-    await drainEvents();
-
     const finalTitle = requestedTitle ?? raw.title;
     const bodyMd =
       partialText.trim() !== ""
@@ -585,7 +526,6 @@ export async function runGeneration(
     );
 
     await emit("status", "Briefing complete.");
-    await drainEvents();
 
     const done: StreamMessage = {
       type: "done",
@@ -610,19 +550,6 @@ export async function runGeneration(
     };
   } catch (cause) {
     const message = humanFailure(cause);
-
-    // Stop any pending flush timer, then try once to store whatever is still
-    // buffered. If persistence is what broke, this is a no-op by design — the
-    // failure note below is written directly and is what the reader sees.
-    if (flushTimer !== null) {
-      clearTimeout(flushTimer);
-      flushTimer = null;
-    }
-    try {
-      await drainEvents();
-    } catch {
-      // Already failing; the note below is the truthful record.
-    }
 
     // Mark the run failed, keeping the partial body that streamed (the partial
     // LOG is already persisted as generation_events rows). This write's error

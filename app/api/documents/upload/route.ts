@@ -34,6 +34,14 @@ import { sanitizeDocumentText, sanitizeLine } from "@/lib/ingest/sanitize";
 
 export const runtime = "nodejs";
 
+// Extraction is CPU-bound work on wholly untrusted bytes (a 20 MB upload, or
+// 5 MB of fetched markup). Without an explicit ceiling a pathological input
+// runs until the platform's default kills it — and a platform kill returns an
+// opaque non-JSON error page, which breaks this route's own promise that a
+// non-2xx always carries a readable `error` (R3). 60 s is far above any honest
+// document (a 19 MB benign page strips in ~0.7 s) and far below a stall.
+export const maxDuration = 60;
+
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB, as the sheet promises.
 
 const KINDS = new Set([

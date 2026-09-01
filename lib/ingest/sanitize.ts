@@ -27,9 +27,30 @@
  */
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
-/** An unpaired surrogate: a high one not followed by a low, or a stray low. */
+/**
+ * An unpaired surrogate: a high one not followed by a low, or a stray low.
+ *
+ * Written WITHOUT lookbehind on purpose. The obvious spelling of the second
+ * half is `(?<!high)[low]`, but this module is imported by
+ * components/add-document/add-document-sheet.tsx — a CLIENT component — so
+ * this regex literal is parsed by the browser. Lookbehind only reached Safari
+ * in 16.4 (March 2023); anywhere older the literal is a SyntaxError at module
+ * PARSE time, which takes down the whole chunk rather than merely degrading
+ * sanitisation.
+ *
+ * Instead: match a WELL-FORMED PAIR first — regex alternation is ordered, so a
+ * valid pair always wins — and capture a lone surrogate only in the second
+ * branch. The replacer keeps the match when nothing was captured.
+ */
 const LONE_SURROGATE =
-  /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+  /[\uD800-\uDBFF][\uDC00-\uDFFF]|([\uD800-\uDBFF]|[\uDC00-\uDFFF])/g;
+
+/** Keeps well-formed pairs; replaces only what the capture group matched. */
+function replaceLoneSurrogates(text: string): string {
+  return text.replace(LONE_SURROGATE, (match, lone: string | undefined) =>
+    lone === undefined ? match : REPLACEMENT
+  );
+}
 
 /** U+FFFD REPLACEMENT CHARACTER — what an unreadable code unit becomes. */
 const REPLACEMENT = "�";
@@ -41,10 +62,10 @@ const REPLACEMENT = "�";
  * Deliberately NOT a trim: callers decide whether an empty result is an error.
  */
 export function sanitizeDocumentText(raw: string): string {
-  return raw
-    .replace(/\r\n?/g, "\n")
-    .replace(LONE_SURROGATE, REPLACEMENT)
-    .replace(CONTROL_CHARS, "");
+  return replaceLoneSurrogates(raw.replace(/\r\n?/g, "\n")).replace(
+    CONTROL_CHARS,
+    ""
+  );
 }
 
 /**
@@ -52,8 +73,7 @@ export function sanitizeDocumentText(raw: string): string {
  * and lone surrogates out, whitespace collapsed to single spaces.
  */
 export function sanitizeLine(raw: string): string {
-  return raw
-    .replace(LONE_SURROGATE, REPLACEMENT)
+  return replaceLoneSurrogates(raw)
     .replace(CONTROL_CHARS, "")
     .replace(/\s+/g, " ")
     .trim();
