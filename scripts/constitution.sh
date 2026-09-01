@@ -36,6 +36,17 @@ grep_absent "R2 no select(\"*\") or empty select()" '\.select\(\s*("\*"|'"'"'\*'
 # R3: no empty catch blocks
 grep_absent "R3 no empty catch {}" 'catch\s*(\([^)]*\))?\s*\{\s*\}'
 
+# R3c: comment-only catch bodies pass the regex above but still swallow errors.
+# WARN (not FAIL) — the auditor must confirm each one is a justified pattern
+# with a stated backstop (added after the card-5a audit noted the gap).
+R3C=$(grep -rnE 'catch\s*(\([^)]*\))?\s*\{' $SRC_DIRS 2>/dev/null | wc -l | tr -d ' ')
+R3C_EMPTYISH=$(perl -0777 -ne 'while(/catch\s*(?:\([^)]*\))?\s*\{((?:\s|\/\/[^\n]*\n|\/\*.*?\*\/)*)\}/gs){print "hit\n"}' $(find $SRC_DIRS -name '*.ts' -o -name '*.tsx' 2>/dev/null) 2>/dev/null | wc -l | tr -d ' ')
+if [ "${R3C_EMPTYISH:-0}" -gt 0 ]; then
+  say "WARN" "R3c $R3C_EMPTYISH comment-only catch block(s): auditor must confirm each has a stated backstop"
+else
+  say "PASS" "R3c no comment-only catch blocks"
+fi
+
 # R3b: supabase writes must reference { error } nearby (heuristic; auditor confirms)
 WRITES=$(grep -rnE '\.(insert|update|upsert|delete)\(' $SRC_DIRS 2>/dev/null | grep -vc 'error' || true)
 if [ "${WRITES:-0}" -gt 0 ]; then

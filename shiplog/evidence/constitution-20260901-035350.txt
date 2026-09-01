@@ -1,0 +1,17 @@
+== Constitution Verifier == 20260901-035350
+PASS   R2 no select("*") or empty select()
+PASS   R3 no empty catch {}
+PASS   R3b writes reference their { error }
+PASS   R5 prompts only in lib/prompts/
+PASS   KEY no SERVICE_ROLE in app code
+PASS   KEY no hardcoded Anthropic key (sk-ant-) anywhere
+PASS   KEY ANTHROPIC_API_KEY only reachable from server code
+PASS   PIN linked project matches pinned ref rqvyiclwhihhsxymenrp
+PASS   R1a RLS enabled + policy present on every public table
+PASS   R4 migration 20260901000001 applied (tracking row present)
+PASS   R1b two-org probe (output: shiplog/evidence/r1-probe-20260901-035350.txt)
+Generating route types...
+✓ Types generated successfully
+PASS   typecheck
+
+PASS   CONSTITUTION: all checks green. Evidence: shiplog/evidence/constitution-20260901-035350.txt

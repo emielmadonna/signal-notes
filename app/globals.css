@@ -2,14 +2,18 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Dark is driven by the data-theme attribute the ThemeProvider sets on <html>
+   (persisted in localStorage + the sn-theme cookie so the server can render
+   the right theme with no flash). Dark is the default theme. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-space-grotesk);
+  --font-serif: var(--font-literata);
+  --font-mono: var(--font-plex-mono);
+  --font-heading: var(--font-literata);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -46,8 +50,177 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Signal Notes tokens mapped into Tailwind so semantic utilities work
+     (bg-sn-card, text-sn-muted, border-sn-border, …) alongside the
+     bg-[var(--sn-card)] arbitrary form. */
+  --color-sn-bg: var(--sn-bg);
+  --color-sn-head: var(--sn-head);
+  --color-sn-border: var(--sn-border);
+  --color-sn-soft: var(--sn-soft);
+  --color-sn-text: var(--sn-text);
+  --color-sn-muted: var(--sn-muted);
+  --color-sn-faint: var(--sn-faint);
+  --color-sn-sheet: var(--sn-sheet);
+  --color-sn-card: var(--sn-card);
+  --color-sn-card-rule: var(--sn-card-rule);
+  --color-sn-card-margin: var(--sn-card-margin);
+  --color-sn-card-text: var(--sn-card-text);
+  --color-sn-card-muted: var(--sn-card-muted);
+  --color-sn-accent: var(--sn-accent);
+  --color-sn-on-accent: var(--sn-on-accent);
+  --color-sn-danger: var(--sn-danger);
+  --color-sn-hover-bg: var(--sn-hover-bg);
+  --color-sn-tip: var(--sn-tip);
+  --color-sn-file-pdf: var(--sn-file-pdf);
+  --color-sn-file-docx: var(--sn-file-docx);
+  --color-sn-file-txt: var(--sn-file-txt);
+  --color-sn-file-md: var(--sn-file-md);
+  --color-sn-file-rtf: var(--sn-file-rtf);
+  --color-sn-file-web: var(--sn-file-web);
+  --color-sn-tag-plan: var(--sn-tag-plan);
+  --color-sn-tag-tool: var(--sn-tag-tool);
+  --color-sn-tag-think: var(--sn-tag-think);
+  --color-sn-tag-write: var(--sn-tag-write);
+  --color-sn-tag-done: var(--sn-tag-done);
+  --color-sn-tag-error: var(--sn-tag-error);
 }
 
+/* ---------------------------------------------------------------------------
+   Signal Notes design tokens — DESIGN-SPEC §1, hex values exactly as in the
+   approved canvas (docs/design/canvas/Signal Notes.dc.html, renderVals()).
+   DARK IS DEFAULT: it lives on bare :root AND on [data-theme="dark"] (the
+   attribute form lets the demo gallery scope a dark section inside a light
+   page and vice versa). Light lives on [data-theme="light"].
+--------------------------------------------------------------------------- */
+:root,
+[data-theme="dark"] {
+  /* §1 token table — dark column */
+  --sn-bg: #0f0f0e; /* app background */
+  --sn-head: #141413; /* header bar */
+  --sn-border: #2c2b27; /* hairlines, ghost buttons */
+  --sn-soft: #26251f; /* subtle dividers, disabled bg */
+  --sn-text: #efece4; /* primary ink */
+  --sn-muted: #8b877d; /* secondary text */
+  --sn-faint: #6b675f; /* micro/faint text */
+  --sn-sheet: #1a1a18; /* modals, menus, pills */
+  --sn-card: #1f1e1a; /* briefing paper cards */
+  --sn-card-rule: rgba(126, 158, 180, 0.22); /* ruled lines on cards */
+  --sn-card-margin: #8a4a42; /* red margin rule (left, 1px, x=34px) */
+  --sn-card-text: #efece4; /* text on cards */
+  --sn-card-muted: #9a9184; /* secondary on cards */
+  --sn-accent: #ffcc48; /* primary actions, selection, citations */
+  --sn-on-accent: #1a1707; /* text on accent */
+  --sn-danger: #e5836f; /* errors, failed, delete */
+  --sn-hover-bg: #211f1c; /* hovered rows */
+  --sn-tip: #111110; /* citation tooltip bg */
+
+  /* Canvas literals the components need per theme (exact values from
+     renderVals(); each comment names the canvas style it comes from). */
+  --sn-scrim: rgba(6, 6, 5, 0.72); /* scrim */
+  --sn-on-danger: #1a1512; /* delBtn / downStyle text on solid danger */
+  --sn-card-edge: #2e2c26; /* card border (briefing card, brief sheet) */
+  --sn-card-btn-border: #3a382f; /* delBtn / noteBtn / auditBtn borders */
+  --sn-err-bg: #1a1512; /* errBox background */
+  --sn-input-bg: #131311; /* pasteBox / streamBox background */
+  --sn-file-bg: #1a1a18; /* fileIcon body */
+  --sn-file-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); /* fileIcon resting shadow */
+  --sn-file-border-alpha: 33.3%; /* fileIcon unselected border: hex 55 */
+  --sn-skel-bar1: #2a2823; /* skelBar1 */
+  --sn-skel-bar2: #232119; /* skelBar2 / skelBar3 */
+  --sn-skel-icon-edge: #1e1d1a; /* skelIcon gradient edges / skelName */
+  --sn-skel-icon-mid: #2a2925; /* skelIcon gradient middle */
+  --sn-skel-meta: #1a1917; /* skelMeta */
+  --sn-avatar-bg: #2c2b27; /* avatarStyle */
+  /* Additive (builder-5): theme-dependent drop shadows from the canvas. */
+  --sn-menu-shadow: 0 26px 46px -22px rgba(0, 0, 0, 0.9); /* quickMenu / accountMenu */
+  --sn-selbar-shadow: 0 24px 44px -20px rgba(0, 0, 0, 0.9); /* selBar */
+}
+
+[data-theme="light"] {
+  /* §1 token table — light column */
+  --sn-bg: #eae6dc;
+  --sn-head: #fbfaf6;
+  --sn-border: #d9d3c6;
+  --sn-soft: #e7e1d3;
+  --sn-text: #1b1a17;
+  --sn-muted: #6e6759;
+  --sn-faint: #8c8578;
+  --sn-sheet: #fbfaf6;
+  --sn-card: #fdfaf0;
+  --sn-card-rule: #d3e1ea;
+  --sn-card-margin: #e39089;
+  --sn-card-text: #1b1a17;
+  --sn-card-muted: #8c8578;
+  --sn-accent: #e8b32a;
+  --sn-on-accent: #231c05;
+  --sn-danger: #b6543f;
+  --sn-hover-bg: #f1ede1;
+  --sn-tip: #fdfaf0;
+
+  /* Canvas literals — light values */
+  --sn-scrim: rgba(6, 6, 5, 0.45);
+  --sn-on-danger: #ffffff;
+  --sn-card-edge: #e2dbca;
+  --sn-card-btn-border: #dcd3bf;
+  --sn-err-bg: #f8ede9;
+  --sn-input-bg: #ffffff;
+  --sn-file-bg: #ffffff;
+  --sn-file-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  --sn-file-border-alpha: 46.7%; /* fileIcon unselected border: hex 77 */
+  --sn-skel-bar1: #ede6d6;
+  --sn-skel-bar2: #f1ebdd;
+  --sn-skel-icon-edge: #e9e3d4;
+  --sn-skel-icon-mid: #f5f1e7;
+  --sn-skel-meta: #efeadc;
+  --sn-avatar-bg: #e7e1d3;
+  /* Additive (builder-5): theme-dependent drop shadows from the canvas. */
+  --sn-menu-shadow: 0 26px 46px -22px rgba(0, 0, 0, 0.35);
+  --sn-selbar-shadow: 0 24px 44px -20px rgba(0, 0, 0, 0.3);
+}
+
+/* Theme-invariant tokens: file-type colors (icon borders/labels) and
+   generation-log tag colors — DESIGN-SPEC §1. */
+:root {
+  --sn-file-pdf: #e5836f;
+  --sn-file-docx: #7fa6d9;
+  --sn-file-txt: #a9a499;
+  --sn-file-md: #8fbf87;
+  --sn-file-rtf: #b08cd9;
+  --sn-file-web: #e8b32a;
+
+  --sn-tag-plan: var(--sn-accent);
+  --sn-tag-tool: #7fa6d9;
+  --sn-tag-think: #b08cd9;
+  --sn-tag-write: var(--sn-accent);
+  --sn-tag-done: #8fbf87;
+  --sn-tag-error: var(--sn-danger);
+}
+
+/* Motion — keyframes copied exactly from the canvas <helmet> style block. */
+@keyframes sn-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes sn-fade{from{opacity:0}to{opacity:1}}
+@keyframes sn-line{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes sn-blink{0%,55%{opacity:1}56%,100%{opacity:.15}}
+@keyframes sn-shim{0%{background-position:-340px 0}100%{background-position:340px 0}}
+@keyframes sn-sweep{0%{transform:translateX(-120%)}100%{transform:translateX(420%)}}
+@keyframes sn-pulse{0%,100%{opacity:.35}50%{opacity:1}}
+
+/* Scrollbars, per the canvas base styles. */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 135, 125, 0.35);
+  border-radius: 20px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* shadcn/ui semantic tokens (pre-existing). They now follow the same
+   data-theme switch so legacy shadcn-styled surfaces flip with the app. */
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -83,7 +256,7 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-.dark {
+[data-theme="dark"] {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -120,11 +293,16 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    box-sizing: border-box;
   }
   body {
     @apply bg-background text-foreground;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
   }
   html {
-    @apply font-sans;
+    /* Space Grotesk is the base body font (canvas appStyle). */
+    font-family: var(--font-space-grotesk), "Space Grotesk", system-ui,
+      sans-serif;
   }
 }

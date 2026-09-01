@@ -60,9 +60,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && pathname === "/signin") {
-    // Already signed in: the sign-in page is not for them.
+    // Already signed in: the sign-in page is not for them. The workspace
+    // now lives at "/" (P2 shell; /documents itself redirects there too).
     const url = request.nextUrl.clone();
-    url.pathname = "/documents";
+    url.pathname = "/";
     url.search = "";
     return withSupabaseCookies(NextResponse.redirect(url), supabaseResponse);
   }

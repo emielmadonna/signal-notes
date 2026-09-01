@@ -149,3 +149,17 @@ specs without asserting unobserved results, builders don't add them.
 - FIX + SYSTEM CHANGE: line fixed and re-verified to zero matches. Rule for
   myself: every scripted text edit ends with a grep that proves the change,
   BEFORE the commit, not after.
+
+## Catch #13 — 2026-09-01 03:57 (P2, tokens/primitives, REJECTED)
+- CLAIM: builder-4's comment: the variable font load "covers the canvas
+  request".
+- VICTIM: every serif surface in the app — briefing titles, card titles, the
+  wordmark — rendering in the text-optical cut instead of the display cut the
+  approved design uses. A whole-app "almost right" nobody could name later.
+- THE CATCH: the auditor inspected the actual shipped font file with font
+  tooling: its axis table contains only the weight axis; the optical-size axis
+  the canvas requests (7-72) was silently dropped by the font loader. Evidence:
+  fvar table dump in the audit, canvas line 11 vs layout.tsx lines 11-16.
+- FIX + SYSTEM CHANGE: declare the optical-size axis in the font config (one
+  line); the P2 visual parity pass now includes a headline close-up comparison
+  so optical-size regressions are visible in evidence.
