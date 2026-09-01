@@ -179,8 +179,8 @@ SEARCH filters both sections live; subs become "N OF 5 FILES" / "N MATCHING".
   failure", and sign-in "SESSION EXPIRED"/"ERROR STATE" tiny links are canvas
   demo affordances, not product. Real states are driven by real data. Failure
   forcing for tests/gatecheck happens via a dev-only server hook instead.
-- D3 "Switch account…" row: kept visually (muted, inert) — users belong to
-  exactly one org; there is no switcher to build.
+- D3 "Switch account…" row: REMOVED entirely (Emiel approved the cut,
+  2026-09-01) — users belong to exactly one org; there is no switcher.
 - D4 EXPORTED audit event: canvas shows "EXPORTED PDF" — no export feature is
   in scope; the event type exists but nothing emits it (ASSUMED list).
 - D5 Canvas mock content (Mara Ellison, Acme docs) is placeholder; real data
