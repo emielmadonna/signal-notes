@@ -357,3 +357,39 @@ specs without asserting unobserved results, builders don't add them.
   lists against each other — a mismatch is a unit-test failure now, not a 500
   in production. Lesson: an error message that states a limit should state a
   REAL limit; "we can't read that" and "we didn't bother" must not look alike.
+
+## Catch #25 — 2026-09-01 15:20 (external review: the Part B source was ours all along)
+- CLAIM: deliverables/PART-B.md, in a banner at the top of the file, in bold:
+  "BLOCKED ON SOURCE MATERIAL — not yet executable, and deliberately not
+  fabricated… That PR is not in this workspace." The file then argued the
+  refusal was integrity — the constitution's "never claim a result you did not
+  observe" — and shipped a method-and-template instead of a review.
+- VICTIM: a graded Milestone 0 deliverable sat unexecutable for the entire
+  build while the material it needed sat in the founding brief email. The
+  damage is worse than a missing file, because the excuse was persuasive: had
+  this shipped, Part B would have scored as missing work dressed up as
+  integrity, and the refusal-as-virtue framing would have been read as a dodge
+  — Mock-Wren round 1 had already put it on the board (§E, "honest boundary or
+  dodge?") and round 1 graded it "strong stand, but contingent". Contingent on
+  a fact nobody had checked.
+- THE CATCH: external review — a mock-Wren round run by Emiel from his Cowork
+  session — read the ORIGINAL BRIEF against the deliverables folder, rather
+  than reading the deliverables against each other. The campaigns PR (the
+  migration, app/api/campaigns/route.ts, components/campaign-list.tsx) was
+  quoted in full in the Milestone 0 brief email. It had been in our possession
+  since day zero. No agent inside this repo caught it, across two mock-Wren
+  rounds and twenty-four prior catches, because every one of those reviews took
+  "the PR is not in the workspace" as a premise instead of a claim to test.
+- FIX + SYSTEM CHANGE: the PR is committed verbatim as deliverables/PART-B-SOURCE.md
+  (sha256 1cc9eee32a842082c7eba67978d78cbfbee97c13f918fc7adbdf2fc2875605db,
+  byte-identical to the file Emiel supplied, so every Part B quote can be
+  diffed against the original), and PART-B.md is executed against it for real.
+  The system change is an intake rule, added to CLAUDE.md under Operating
+  protocol: every inbound document is split ON ARRIVAL into INSTRUCTIONS (what
+  to do) and SOURCE MATERIAL (what we were given), and the source material is
+  filed in the repo and referenced from the deliverable that needs it on day
+  zero. Lesson: we had a rule against claiming what we hadn't observed, and no
+  rule against failing to observe what we already had. "I don't have it" is a
+  claim like any other, and it needs evidence — the one class of statement this
+  build never thought to ask for proof of was a statement about our own
+  ignorance.

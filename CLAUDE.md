@@ -59,6 +59,11 @@ with the SSR helpers, Supabase CLI migrations, Vercel. Everything in English.
 - CATCH LOG: any rejected claim, wrong output, or would-have-broken mistake gets
   a four-part entry in docs/catch-log.md at the moment it happens: CLAIM /
   VICTIM / THE CATCH (with evidence) / FIX + SYSTEM CHANGE.
+- INTAKE: every inbound document is split the moment it arrives into
+  INSTRUCTIONS (what we are being asked to do) and SOURCE MATERIAL (what we
+  have been given to work on). Source material is committed to the repo and
+  referenced from the deliverable that needs it on day zero. "We don't have it"
+  is a claim, and it needs checking like any other. (Added after catch #25.)
 - VERIFIER: `npm run constitution` must pass before any merge and before any
   deploy. `npm run gatecheck` assembles each Change Card's proof section;
   UNPROVEN lines default to reject.

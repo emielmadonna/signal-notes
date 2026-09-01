@@ -56,5 +56,9 @@ best 20 seconds of the hour.
 - The optimistic rating isn't awaited before paint — a sub-second reload can
   race it (works in normal use).
 - R5b is a WARN (surfaces prompt-shaped strings for review), not a hard block.
-- Part B is not done: it reviews a campaigns PR not in the workspace, and I did
-  not fabricate a review of code I haven't seen.
+- Part B was late, and the reason is mine to say first: the campaigns PR was in
+  the Milestone 0 brief all along and our intake never filed it, so PART-B.md
+  sat marked BLOCKED while the source sat in the founding email. An outside
+  review caught it, not us. It is executed now (29 findings), the PR is
+  committed as deliverables/PART-B-SOURCE.md, and the intake rule that came out
+  of it is catch #25 and a line in CLAUDE.md.
