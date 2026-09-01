@@ -56,3 +56,6 @@ yarn-error.log*
 next-env.d.ts
 e2e/.results/
 e2e/fixtures/
+
+# Per-run verifier reports are transient; keyed evidence is committed explicitly.
+shiplog/evidence/constitution-*.txt
