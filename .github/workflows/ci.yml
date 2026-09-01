@@ -24,6 +24,15 @@ jobs:
           SEED_USER_PASSWORD: ${{ secrets.SEED_USER_PASSWORD }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      # Evidence files are written on the runner; without this they vanish on
+      # failure and the FAIL line names a file nobody can read (found the hard
+      # way when the first live-check run failed opaquely).
+      - name: upload evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiplog-evidence
+          path: shiplog/evidence/
       - name: typecheck
         run: npx tsc --noEmit
       - name: build

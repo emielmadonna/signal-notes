@@ -48,3 +48,5 @@
 02:56:45 | dispatcher | P1 build work is done and every check is green against the live database. Filing four Change Cards for Emiel, pushing the branch to GitHub, and holding all merges for his audit.
 02:59:10 | dispatcher | The first automatic check on GitHub caught a real gap: type-checking behaves differently on a fresh machine than on mine. Teaching the rule checker to generate the framework's types first, then pushing the fix.
 03:01:27 | dispatcher | The automatic check on GitHub is green. P1 is build-complete: four cards wait for Emiel, the catch log holds ten entries, and nothing merges until he audits.
+03:05:25 | dispatcher | Emiel hands over the AI key and directs me to load the CI secrets myself. Storing the key in the local secrets file and moving the database credentials into GitHub's secret store. No values appear anywhere readable.
+03:13:18 | dispatcher | The GitHub check with live database access failed at the probe, but its proof file stayed behind on the runner. Teaching CI to ship the evidence out on failure, then re-running to see the real reason.
