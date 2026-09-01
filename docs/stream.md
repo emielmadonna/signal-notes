@@ -55,3 +55,4 @@
 03:20:11 | builder-2 | The fix is in and type-checks. Now proving it both ways: first a normal run using the local secrets file, then a run with that file temporarily renamed and the settings passed in directly, the way the build system does it.
 03:20:50 | builder-2 | Proven both ways: the isolation proof passes all 16 checks with the local secrets file, and passes all 16 again with the file removed and the settings supplied directly like the build system does. The secrets file is back in place, untouched, and no secret was ever printed.
 03:21:36 | dispatcher | The loader fix is proven in both modes on this machine. Committing and pushing so the GitHub check can run the isolation probe itself.
+03:23:39 | dispatcher | GitHub now runs the full gate itself: live database checks, the sixteen-check isolation probe, types, and the build — all green. The safety net no longer depends on my machine.
