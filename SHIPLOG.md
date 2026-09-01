@@ -44,6 +44,15 @@ All Signal Notes application code, schema, and migrations: after "go".
       Output: shiplog/evidence/r1-probe-20260901-025459.txt.
       Context: the probe's composite-FK checks exist because the auditor
       REJECTED the first migration draft for exactly that hole — catch #5/#6.
+- [x] 2026-09-01 04:24 — Probe extended to 24 checks (12 per user) after
+      migration 0002: briefing_notes and audit_events cross-org inserts
+      rejected by composite FKs (code 23503), cross-org selects return 0 rows
+      with the reader's own org first proven non-empty. Output:
+      shiplog/evidence/r1-probe-20260901-042430.txt. The audit trail is
+      tamper-evident by construction: inserts are pinned to the signed-in
+      user (catch #14) and audit rows survive the deletion of their subjects
+      (catch #15) — both holes caught in review BEFORE the migration was
+      applied.
 
 ### R2 — No wildcard selects
 - [ ] Verifier select-check output: evidence/r2-selects.txt
@@ -67,6 +76,15 @@ All Signal Notes application code, schema, and migrations: after "go".
       (constitution-20260901-025459.txt) — the gate works in both directions.
       Related: shiplog/evidence/r4-blank-project-proof-20260901.txt (catch #4:
       the pre-connected production database this build refused to touch).
+- [x] supabase/migrations/20260901000002_canvas_schema.sql — committed then
+      applied 04:23 via `supabase db push`, verified 04:23.
+      tracking rows: `20260901000001 | foundation`, `20260901000002 |
+      canvas_schema`. information_schema: all new columns live (documents
+      file_name/ext/size_bytes; briefings sections/word_count/citation_count;
+      briefing_notes 7 cols; audit_events 9 cols incl. actor_user_id);
+      backfill verified (ext WEB×2/TXT×10, size_bytes 1075-1251 bytes); RLS
+      true + policies on both new tables. Full paste:
+      shiplog/evidence/r4-migration-0002-verified-20260901.txt.
 
 ### R5 — Prompts in one module
 - [ ] Verifier inline-prompt check: evidence/r5-prompts.txt
