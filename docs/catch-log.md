@@ -132,9 +132,163 @@ specs without asserting unobserved results, builders don't add them.
   artifact surfaced the real reason: the scripts' env loader hard-requires a
   .env.local file and dies on a clean checkout — even with every needed
   variable already present in the environment. Evidence:
-  r1-probe-20260901-101617.txt ("No .env.local found ... Run this from the
-  repo root."), GitHub runs 33495059559 / 33496288128.
+  the downloaded CI evidence artifact showed "No .env.local found ... Run this
+  from the repo root." (a transient CI-runner file, not a committed artifact);
+  GitHub runs 33495059559 / 33496288128.
 - FIX + SYSTEM CHANGE: loader treats .env.local as an optional fallback and
   fatals only when a required variable is missing from BOTH sources; CI now
   uploads evidence artifacts on failure so no gate can fail unreadably again.
   (GitHub secrets were also re-set newline-free as hygiene while diagnosing.)
+
+## Catch #12 — 2026-09-01 03:55 (dispatcher self-catch, spec edit)
+- CLAIM: "spec updated" — the switch-account row removed from DESIGN-SPEC.
+- VICTIM: Builder-5, who would have read the untouched layout line and built
+  the inert row Emiel had just cut.
+- THE CATCH: the edit script printed success without verifying; a grep after
+  the commit showed the layout line unchanged (the search string missed a line
+  wrap). Evidence: grep output in session, fix commit on p2-design.
+- FIX + SYSTEM CHANGE: line fixed and re-verified to zero matches. Rule for
+  myself: every scripted text edit ends with a grep that proves the change,
+  BEFORE the commit, not after.
+
+## Catch #13 — 2026-09-01 03:57 (P2, tokens/primitives, REJECTED)
+- CLAIM: builder-4's comment: the variable font load "covers the canvas
+  request".
+- VICTIM: every serif surface in the app — briefing titles, card titles, the
+  wordmark — rendering in the text-optical cut instead of the display cut the
+  approved design uses. A whole-app "almost right" nobody could name later.
+- THE CATCH: the auditor inspected the actual shipped font file with font
+  tooling: its axis table contains only the weight axis; the optical-size axis
+  the canvas requests (7-72) was silently dropped by the font loader. Evidence:
+  fvar table dump in the audit, canvas line 11 vs layout.tsx lines 11-16.
+- FIX + SYSTEM CHANGE: declare the optical-size axis in the font config (one
+  line); the P2 visual parity pass now includes a headline close-up comparison
+  so optical-size regressions are visible in evidence.
+
+## Catch #14 — 2026-09-01 04:17 (migration 0002, REJECTED before apply)
+- CLAIM: audit_events is the append-only accountability trail.
+- VICTIM: the trail's own trustworthiness — any org member could insert lines
+  under a colleague's name or as "SYSTEM", fabricating completions and checks.
+  A forgeable audit trail is worse than none: it lends forged lines authority.
+- THE CATCH: the auditor noticed actor was free text with only org-membership
+  checked on insert — while every other writable table in the same two
+  migrations pins identity to the signed-in user. The inconsistency was the
+  tell. Evidence: migration lines 119 + 150-154 vs briefing_notes_insert.
+- FIX + SYSTEM CHANGE: actor_user_id column pinned to the signed-in user on
+  every authenticated insert; SYSTEM lines only writable server-side; display
+  name derived server-side, never client-supplied.
+
+## Catch #15 — 2026-09-01 04:17 (migration 0002, same review)
+- CLAIM: "once an audit line is written nobody can edit it or make it
+  disappear from the app" (the migration's own comment).
+- VICTIM: the deleted-briefing case — exactly when an audit trail matters
+  most. Cascade deletion would have silently purged a briefing's entire
+  history the moment the briefing was deleted.
+- THE CATCH: the auditor read the cascade rules against the comment's promise
+  and found them in direct contradiction. Evidence: migration lines 128/132
+  vs 147-149.
+- FIX + SYSTEM CHANGE: audit rows now survive their subjects — deleting a
+  briefing or document blanks the link but keeps the line, org-scoped. The
+  comment now tells the truth.
+
+## Catch #16 — 2026-09-01 05:10 (P3, fetch-url route, security)
+- CLAIM: the web-URL ingestion route safely fetches a user-supplied address.
+- VICTIM: the server itself — an authenticated user could aim it at
+  http://169.254.169.254 (cloud metadata) or internal 127.0.0.1/RFC-1918 hosts
+  and read the response back through the stored document (a read-SSRF oracle);
+  redirect:"follow" could also bounce a public URL into a private one.
+- THE CATCH: the auditor read the fetch path and flagged the missing private-
+  address guard, judging severity honestly (low-moderate on Vercel serverless,
+  higher if self-hosted) and recommending the fix rather than only noting it.
+- FIX + SYSTEM CHANGE: an isBlockedHost guard rejects localhost / metadata IP /
+  RFC-1918 / link-local / unique-local / loopback before fetch; redirects are
+  now manual and every hop's host is re-validated (max 4 hops). Verified across
+  16 host cases. DNS-rebinding residual is on the ASSUMED list.
+
+## Catch #17 — 2026-09-01 05:10 (P3 integration, REJECTED)
+- CLAIM: the documents empty state is done.
+- VICTIM: any user with an empty (or freshly emptied) workspace — the "Add
+  document" button sat greyed out with a tooltip "arrives in P3", pointing at a
+  feature that shipped in this very phase. A lying empty state.
+- THE CATCH: the auditor cross-checked the disabled CTA against the routes that
+  shipped this phase and found the button dead while /documents/new was live.
+  Evidence: section-state.tsx line 134.
+- FIX + SYSTEM CHANGE: onAdd threaded into SectionState, the button enabled to
+  open the add sheet, both stale "arrives in P3" tooltips corrected. Rule for
+  the phase: when a feature lands, sweep its own empty/disabled states in the
+  same phase — a shipped feature behind a dead button is not done.
+
+## Catch #18 — 2026-09-01 05:38 (P4 engine, REJECTED)
+- CLAIM: lib/prompts/briefing.ts header: "Every word the model reads lives
+  here and NOWHERE ELSE." Verifier R5: PASS.
+- VICTIM: the operations-review surface rule 5 protects — three model-facing
+  instruction strings ("Now call submit_briefing…", the out-of-set refusal, the
+  "resubmit with a non-empty title…" correction) were written inline in
+  lib/ai/anthropic.ts, unversioned, invisible to review. The compliance claim
+  in the prompt file's own header was false.
+- THE CATCH: the auditor read the engine line by line and found the strings the
+  R5 grep heuristic ('you are a|system prompt|<instructions') structurally
+  cannot see. Evidence: anthropic.ts lines 261-265, 289, 325.
+- FIX + SYSTEM CHANGE: the three strings move to named, versioned constants in
+  lib/prompts/briefing.ts. The verifier gains an R5b WARN flagging
+  second-person/imperative model-directive strings in lib/ai and app/api so
+  this class can't hide behind a green R5 again.
+
+## Catch #19 — 2026-09-01 05:50 (P4 engine, builder self-catch during re-test)
+- CLAIM: (implicit) the generation loop is robust across runs.
+- VICTIM: ~1 in 6 real generations — the model service returned a 400 ("text
+  content blocks must be non-empty") when the engine echoed an occasional
+  empty streamed text block back into the tool-continuation turn. The failure
+  path handled it correctly (status failed, partial kept), but a flaky 1-in-6
+  failure on the product's core action is not acceptable.
+- THE CATCH: builder-10, re-testing after the rule-5 move, hit the 400,
+  refused to wave it off as transient, and reproduced it deterministically
+  with a diagnostic harness until it found the empty-block echo. Evidence: 7
+  consecutive clean runs after the one-line guard.
+- FIX + SYSTEM CHANGE: empty text blocks are dropped before the assistant turn
+  is echoed back into the tool loop (thinking + tool_use order preserved).
+  Bug pre-dated the rule-5 change (that move was byte-identical).
+
+## Catch #20 — 2026-09-01 06:xx (Mock-Wren round 1, rehearsal)
+- CLAIM: the submission's evidence pointers all resolve; the decision cards and
+  SHIPLOG state exactly what the gates do.
+- VICTIM: Emiel in the live walkthrough — the flagship catch #4 ("wrong
+  production DB") cited shiplog/evidence/r4-wrong-project-migrations.txt, which
+  was never saved; Wren's first move is "show me the file," and it would 404 on
+  the proudest story. Plus D05 oversold a WARN as an auto-block, and SHIPLOG §1
+  left R2/R3 as unchecked boxes with placeholder filenames.
+- THE CATCH: the Mock-Wren rehearsal agent, playing both sides against the real
+  repo, tried to open every cited file and argued the other side of each
+  decision. Full transcript: deliverables/MOCK-WREN-ROUND-1.md.
+- FIX + SYSTEM CHANGE: created the missing evidence from genuinely-observed data
+  (no false precision — count stated as "~300", head quoted verbatim, the
+  saved tables file named as the load-bearing artifact); canonical committed
+  probe proof (r1-probe-final-24checks.txt) replacing gitignored timestamped
+  refs; R2/R3 boxes filled with the real verifier evidence; D05 scoped to
+  "WARN, surfaced-not-auto-blocked"; SHIPLOG §3 concedes optimistic-with-
+  rollback is the correct reading. Standing rule: a dead-pointer sweep
+  (grep evidence filenames, test -f each) runs before any submission is called
+  done — no claim may cite a file that doesn't exist.
+
+## Catch #21 — 2026-09-01 (Mock-Wren round 2, verification of round-1 fixes)
+- CLAIM (mine, dispatcher, in the stream at 11:18): "Zero dead pointers now."
+- VICTIM: the submission's credibility — a freshly-made "zero dead pointers"
+  promise that was itself false, because my dead-pointer sweep regex only
+  matched full "shiplog/evidence/..." paths and missed a BARE-filename
+  citation in decision card D07 (r1-probe-20260901-042430.txt), and I never
+  re-ran the sweep over the decision cards after claiming it.
+- THE CATCH: Mock-Wren round 2 re-ran the dead-pointer attack it had promised,
+  test -f'd every cited file across the D-cards, and found D07 still 404'd —
+  the exact class round 1 flagged, now contradicting my own promise. It also
+  surfaced that the gitignore made ALL timestamped probe/constitution files
+  untracked, so several "025459" citations were dead for a fresh clone, and
+  that the citation check proves presence not support (an un-listed ASSUMED
+  gap). Transcript: deliverables/MOCK-WREN-ROUND-2.md.
+- FIX + SYSTEM CHANGE: every evidence citation across SHIPLOG + all cards +
+  all decisions + Part B/C repointed to a COMMITTED file and verified with a
+  git-ls-files check (not just test -f) — "✓ every evidence file cited in the
+  index docs is committed". The sweep now checks git-tracking, catches bare
+  filenames, and is documented as a pre-submission gate. The citation
+  presence-vs-support limit is now on the ASSUMED list. Lesson: a verification
+  claim ("zero X") must itself be verified by the tool, not asserted — the
+  same standard the whole build runs on, applied to my own promise.

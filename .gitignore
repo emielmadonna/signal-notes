@@ -54,3 +54,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+e2e/.results/
+e2e/fixtures/
+
+# Per-run verifier reports are transient; keyed evidence is committed explicitly.
+shiplog/evidence/constitution-*.txt
+shiplog/evidence/r1-naked-tables-*.txt
+shiplog/evidence/r1-probe-2*.txt

@@ -99,16 +99,33 @@ Owner: Dispatcher + Builder-1 + Auditor. You: approve ~4 cards.
 - Artifacts out: migration 0001, seed, probe output, deployed URL, CI green
   run, cards 1-4, SHIPLOG R1+R4 entries, stream + catch entries as they happen.
 
-## P2 — DESIGN SYSTEM IN CODE (~1.5h)
+## P2 — DESIGN SYSTEM IN CODE (~2h) — REVISED for the approved canvas
 
-Gated on DESIGN-SPEC.md. Owner: Builder-2.
+Gated on DESIGN-SPEC.md (LANDED 2026-09-01; canvas in docs/design/canvas/).
+The canvas supersedes the original design prompt: single-workspace app, DARK
+default + light toggle, sheets over a scrim instead of separate pages (URLs
+still deep-link: /briefings/[id], /documents/[id] render as sheets over the
+workspace; unknown ids render the not-found sheet).
 
-- Tokens (palette, type scale: serif/sans/mono, spacing, radii) into Tailwind
-  config; shell (nav, org name, sign-out); shared components: InlineError,
-  StateBlock (empty/loading/error), working-state Button, ActivityLog,
-  GroundingPanel, FeedbackSeam, DocumentPickerRow.
-- Artifact: components + a side-by-side screenshot set (design vs built) in
-  evidence; card 5. Your review here is visual: does it match what you approved.
+- Tokens: both theme palettes as CSS variables, Literata/Space Grotesk/IBM
+  Plex Mono, file-type colors, radii, motion keyframes; theme toggle persisted.
+- Primitives: pill buttons (primary/ghost/danger/link, working states), micro
+  labels, FileIcon (ext, 3 sizes, folded corner, selection ring), StateBlock
+  (empty/loading skeletons w/ shimmer/error box), Sheet + scrim system, toast,
+  citation tooltip shell, pending-aware inputs.
+- Shell: header (wordmark+mark, search, theme toggle, New-briefing quick menu,
+  account menu w/ sign out), sign-in restyled to the canvas (incl. expired +
+  error states), selection bar shell.
+- Artifact: side-by-side screenshots (canvas vs built, dark AND light) in
+  evidence; card 5.
+
+## P2.5 — MIGRATION 0002 (~0.5h): what the canvas demands of the schema
+
+- documents: file_name, ext, size_bytes; briefings: delete policy, structured
+  sections + citations (document_id, passage label, exact quote), counts;
+  NEW briefing_notes (org-scoped, per-section, author); NEW audit_events
+  (append-only, org-scoped, briefing/document-scoped). Composite-FK discipline
+  as 0001. Probe extended to the new tables. Committed→applied→verified (R4).
 
 ## P3 — DOCUMENTS CRUD (~2h): rules 2, 3, 9, 10 territory
 
@@ -145,8 +162,22 @@ Gated on DESIGN-SPEC.md. Owner: Builder-2.
 - Artifacts: cards 9-12, mid-stream screenshot (partial body + live log),
   failure screenshots, feedback row query output (R7), SHIPLOG R5-R8 entries.
 
-## P5 — HARDENING + SHIPLOG (~2h)
+## P5 — HARDENING + FULL VERIFICATION SWEEP (~3h)
 
+- E2E suite (Playwright, committed, wired into gatecheck + CI): sign-in
+  (success / wrong password / expired banner / next-redirect / open-redirect
+  bypass strings), documents (all 4 states, forced 500s, add via paste + EVERY
+  file type PDF/DOCX/TXT/MD/RTF + WEB URL, title/body edit optimistic, rename,
+  single + multi delete with confirm, drag-drop, search, selection bar, quick
+  menu), composer (zero-docs edge, zero-selected, model picker), generation
+  (SSE stream asserted event-by-event: status/thinking/tool_call/text_delta
+  arrive incrementally AND match persisted generation_events rows; close-and-
+  reopen mid-run resumes from events; forced failure path shows partial log +
+  partial text + retry), briefing view (citations + tooltips with real quotes,
+  section notes CRUD w/ DB row asserts, rating up/down persisted + rated line,
+  log replay, audit trail rows), theme toggle both ways, 768px resize on every
+  surface, cross-org deep links render not-found. Every API route also hit
+  directly: auth-required 401/redirect, non-2xx never rendering as empty.
 - Full gatecheck sweep across every surface: forced failures, resize to 768px,
   abort checks, final constitution run with DATABASE_URL live.
 - Distill catch-log into SHIPLOG section 2 (strongest 3-4, raw log stays

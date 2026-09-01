@@ -1,0 +1,36 @@
+== R4 evidence: migration 20260901000002_canvas_schema — 2026-09-01 04:23:47 ==
+-- tracking rows --
+20260901000001	foundation
+20260901000002	canvas_schema
+
+-- new columns live --
+audit_events	id	bigint	NO
+audit_events	org_id	uuid	NO
+audit_events	briefing_id	uuid	YES
+audit_events	document_id	uuid	YES
+audit_events	event	text	NO
+audit_events	detail	text	NO
+audit_events	actor	text	NO
+audit_events	actor_user_id	uuid	YES
+audit_events	created_at	timestamp with time zone	NO
+briefing_notes	id	uuid	NO
+briefing_notes	briefing_id	uuid	NO
+briefing_notes	org_id	uuid	NO
+briefing_notes	user_id	uuid	NO
+briefing_notes	section_index	integer	NO
+briefing_notes	body	text	NO
+briefing_notes	created_at	timestamp with time zone	NO
+briefings	sections	jsonb	YES
+briefings	word_count	integer	YES
+briefings	citation_count	integer	YES
+documents	file_name	text	YES
+documents	ext	text	NO
+documents	size_bytes	bigint	NO
+
+-- backfill check --
+WEB	2	1185	1251
+TXT	10	1075	1191
+
+-- RLS + policies on new tables --
+audit_events	true	2
+briefing_notes	true	3

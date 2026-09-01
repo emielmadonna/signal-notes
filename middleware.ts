@@ -47,7 +47,16 @@ export async function middleware(request: NextRequest) {
   // (No /api/auth route exists yet; pre-authorize it here only when it does.)
   const isPublicPath = pathname === "/signin";
 
-  if (!user && !isPublicPath) {
+  // API CONTRACT: /api/* requests pass through this middleware WITHOUT the
+  // sign-in redirect — a fetch() caller must get machine-readable JSON, not
+  // a 307 to an HTML page. The session refresh above still runs for them.
+  // In exchange, EVERY route under app/api/ MUST authenticate itself
+  // (supabase.auth.getUser()) and answer 401 JSON when there is no user.
+  // Both existing routes (/api/documents/upload, /api/documents/fetch-url)
+  // do exactly that; any new API route must too.
+  const isApiPath = pathname.startsWith("/api/");
+
+  if (!user && !isPublicPath && !isApiPath) {
     // Unauthenticated: send to sign-in, remembering where they were headed.
     const url = request.nextUrl.clone();
     url.pathname = "/signin";
@@ -60,9 +69,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && pathname === "/signin") {
-    // Already signed in: the sign-in page is not for them.
+    // Already signed in: the sign-in page is not for them. The workspace
+    // now lives at "/" (P2 shell; /documents itself redirects there too).
     const url = request.nextUrl.clone();
-    url.pathname = "/documents";
+    url.pathname = "/";
     url.search = "";
     return withSupabaseCookies(NextResponse.redirect(url), supabaseResponse);
   }

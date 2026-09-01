@@ -1,69 +1,95 @@
-import Image from "next/image";
+// The authenticated workspace at "/" (DESIGN-SPEC §2: one authenticated
+// screen + sign-in). The middleware guards this route; the getUser() check
+// below is the server-side backstop. The org name is fetched server-side
+// with NAMED columns (constitution R2) through RLS, so a user can only ever
+// see their own org.
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { signOut } from "@/app/actions/sign-out";
+import { Workspace } from "@/components/workspace/workspace";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Home() {
+export const metadata: Metadata = {
+  title: "Signal Notes",
+};
+
+// "mara.ellison" → "Mara Ellison"; "mara" → "Mara" (spec D5: name derives
+// from the signed-in user's email local-part).
+function prettyNameFromEmail(email: string): string {
+  const local = email.split("@")[0] ?? "";
+  const parts = local.split(/[._+-]+/).filter(Boolean);
+  if (parts.length === 0) return email;
+  return parts
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+}
+
+// Avatar initials from the pretty name: first letters of the first two
+// words ("Mara Ellison" → "ME"); a single word gives its first two letters.
+function initialsFromName(name: string): string {
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return (words[0] ?? "??").slice(0, 2).toUpperCase();
+}
+
+type MembershipRow = {
+  org_id: string;
+  organizations:
+    | { id: string; name: string }
+    | { id: string; name: string }[]
+    | null;
+};
+
+export default async function WorkspacePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/signin?next=/");
+  }
+
+  // Real org name: org_members joined to organizations for the current
+  // user, named columns only (R2). RLS already scopes rows to the caller.
+  const { data: membership, error: orgFetchError } = await supabase
+    .from("org_members")
+    .select("org_id, organizations (id, name)")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle<MembershipRow>();
+
+  const orgRelation = membership?.organizations ?? null;
+  const org = Array.isArray(orgRelation) ? orgRelation[0] ?? null : orgRelation;
+
+  // Surfaced, never swallowed: a failed fetch (or a user with no membership
+  // row, which should not happen with seeded data) reads as an explicit
+  // failure in the account menu — not as a blank.
+  const orgError = orgFetchError
+    ? orgFetchError.message
+    : org
+      ? null
+      : "No workspace membership found for this account.";
+
+  const email = user.email ?? "unknown@unknown";
+  const displayName = prettyNameFromEmail(email);
+  const params = await searchParams;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <Workspace
+      email={email}
+      displayName={displayName}
+      initials={initialsFromName(displayName)}
+      orgName={org?.name ?? null}
+      orgError={orgError}
+      signOutError={params.error === "signout"}
+      signOutAction={signOut}
+    />
   );
 }

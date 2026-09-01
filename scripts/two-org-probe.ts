@@ -18,11 +18,33 @@
 //       composite foreign key specifically (Postgres error code 23503),
 //   (h) each user's attempt to write a generation_events log line against the
 //       OTHER organization's briefing id is rejected by the composite foreign
-//       key specifically (Postgres error code 23503).
+//       key specifically (Postgres error code 23503),
+//   (i) each user's attempt to attach a briefing_notes margin note to the
+//       OTHER organization's briefing id (with their OWN org_id and user_id)
+//       is rejected by the composite foreign key specifically (23503),
+//   (j) each user's attempt to write an audit_events row against the OTHER
+//       organization's briefing id (with their OWN org_id and their own
+//       actor_user_id, so only the composite foreign key can object) is
+//       rejected by the composite foreign key specifically (23503),
+//   (k) each user selecting the OTHER organization's audit_events by org_id
+//       gets exactly 0 rows and no error — after first proving their OWN org
+//       holds at least one audit row (writing one through their own session
+//       if absent, which also exercises the authenticated insert happy path
+//       with actor_user_id = self), so the 0 can never be vacuous,
+//   (l) each user selecting the OTHER organization's briefing_notes by org_id
+//       gets exactly 0 rows and no error.
 //
-// Setup for (g)/(h): each user finds or creates one briefing in their own org
+// Setup for (g)-(k): each user finds or creates one briefing in their own org
 // (title 'probe briefing', status 'generating', model 'probe') through their
-// own session — reused across runs so repeated probes leave no junk behind.
+// own session. Cleanup: after all checks have run (pass or fail, via a
+// finally block), each session DELETES its own probe briefing again, so no
+// perpetual GENERATING card is left behind in a real workspace — which also
+// live-exercises migration 0002's org-scoped briefings delete policy on every
+// probe run. The cleanup is reported in plain English but is NOT a counted
+// check, and a failed cleanup never changes the exit code. The probe's own
+// audit line (written in (k) when the org's trail was empty) survives the
+// deletion with its briefing link blanked — by design: the trail outlives
+// its subjects.
 //
 // Prints one plain-English PASS/FAIL line per check and exits non-zero if any
 // expectation fails.
@@ -102,6 +124,8 @@ type Session = {
   label: string;
   email: string;
   client: SupabaseClient;
+  /** This user's own auth.users id, for the cross-org margin-note attempt. */
+  userId: string;
   orgId: string;
   /** One of this user's own document ids, for the cross-org update attempt. */
   ownDocumentId: string | null;
@@ -141,6 +165,10 @@ async function openSession(label: string, email: string): Promise<Session> {
   if (signIn.error) {
     fatal(`could not sign in as ${email}: ${signIn.error.message}`);
   }
+  const userId = signIn.data.user?.id;
+  if (!userId) {
+    fatal(`sign-in for ${email} returned no user id.`);
+  }
 
   const memberships = await client.from("org_members").select("org_id");
   if (memberships.error) {
@@ -164,6 +192,7 @@ async function openSession(label: string, email: string): Promise<Session> {
     label,
     email,
     client,
+    userId,
     orgId,
     ownDocumentId: rows.length > 0 ? rows[0].id : null,
     ownDocumentCount: rows.length,
@@ -172,10 +201,10 @@ async function openSession(label: string, email: string): Promise<Session> {
 }
 
 /**
- * Setup for checks (g)/(h): each user needs one briefing in their OWN org.
- * Idempotent: the verifier runs this probe before every merge and deploy, so
- * an existing 'probe briefing' is reused instead of piling up junk rows the
- * demo orgs could never delete.
+ * Setup for checks (g)-(k): each user needs one briefing in their OWN org.
+ * Normally created fresh (cleanupProbeBriefing deletes it at the end of every
+ * run); an existing 'probe briefing' is still reused first, so a run whose
+ * cleanup failed never piles up duplicates.
  */
 async function createProbeBriefing(session: Session): Promise<void> {
   const existing = await session.client
@@ -353,6 +382,158 @@ async function probeUser(me: Session, other: Session): Promise<void> {
           : `${me.label} writing a log line against the other organization's briefing was rejected, but NOT by the composite foreign key (code ${crossEvent.error.code}: ${crossEvent.error.message}).`
     );
   }
+
+  // (i) attach a margin note to the OTHER org's briefing id: must be rejected
+  // by the composite (briefing_id, org_id) reference even though the row's own
+  // org_id and user_id are mine.
+  if (other.probeBriefingId === null) {
+    report(
+      false,
+      `${me.label} cannot attempt the cross-org margin note: the other organization has no probe briefing to target.`
+    );
+  } else {
+    const crossNote = await me.client.from("briefing_notes").insert({
+      briefing_id: other.probeBriefingId,
+      org_id: me.orgId,
+      user_id: me.userId,
+      section_index: 0,
+      body: `Probe intrusion margin note by ${me.email}. This row must never exist.`,
+    });
+    // Only a foreign-key violation (Postgres code 23503) proves the composite
+    // reference did the blocking; any other rejection is the wrong mechanism.
+    report(
+      crossNote.error !== null && crossNote.error.code === "23503",
+      crossNote.error === null
+        ? `${me.label} attaching a margin note to the other organization's briefing SUCCEEDED — the composite reference is broken.`
+        : crossNote.error.code === "23503"
+          ? `${me.label} attaching a margin note to the other organization's briefing is rejected by the composite foreign key (code 23503: ${crossNote.error.message}).`
+          : `${me.label} attaching a margin note to the other organization's briefing was rejected, but NOT by the composite foreign key (code ${crossNote.error.code}: ${crossNote.error.message}).`
+    );
+  }
+
+  // (j) write an audit line against the OTHER org's briefing id: must be
+  // rejected by the composite (briefing_id, org_id) reference even though the
+  // row's own org_id is mine.
+  if (other.probeBriefingId === null) {
+    report(
+      false,
+      `${me.label} cannot attempt the cross-org audit write: the other organization has no probe briefing to target.`
+    );
+  } else {
+    // actor_user_id is the prober's own id so the RLS insert policy passes
+    // and only the composite foreign key can object.
+    const crossAudit = await me.client.from("audit_events").insert({
+      org_id: me.orgId,
+      briefing_id: other.probeBriefingId,
+      event: "NOTE",
+      detail: `Probe intrusion audit line by ${me.email}. This row must never exist.`,
+      actor: "PROBE",
+      actor_user_id: me.userId,
+    });
+    // Only a foreign-key violation (Postgres code 23503) proves the composite
+    // reference did the blocking; any other rejection is the wrong mechanism.
+    report(
+      crossAudit.error !== null && crossAudit.error.code === "23503",
+      crossAudit.error === null
+        ? `${me.label} writing an audit line against the other organization's briefing SUCCEEDED — the composite reference is broken.`
+        : crossAudit.error.code === "23503"
+          ? `${me.label} writing an audit line against the other organization's briefing is rejected by the composite foreign key (code 23503: ${crossAudit.error.message}).`
+          : `${me.label} writing an audit line against the other organization's briefing was rejected, but NOT by the composite foreign key (code ${crossAudit.error.code}: ${crossAudit.error.message}).`
+    );
+  }
+
+  // (k) other-org audit_events read by org_id: expect exactly 0 rows and no
+  // error. To keep the 0 from being vacuous, first prove MY OWN org holds at
+  // least one audit row — writing one through this session if absent, which
+  // also exercises the authenticated insert happy path (actor_user_id = self).
+  const ownAudit = await me.client
+    .from("audit_events")
+    .select("id, org_id, event")
+    .eq("org_id", me.orgId)
+    .limit(1);
+  if (ownAudit.error) {
+    fatal(
+      `${me.email} could not read their own organization's audit trail: ${ownAudit.error.message}`
+    );
+  }
+  if (!ownAudit.data || ownAudit.data.length === 0) {
+    const selfAudit = await me.client.from("audit_events").insert({
+      org_id: me.orgId,
+      briefing_id: me.probeBriefingId,
+      event: "VIEWED",
+      detail: `Probe self-check line by ${me.email}, written so the cross-org 0-rows check cannot pass vacuously.`,
+      actor: "PROBE",
+      actor_user_id: me.userId,
+    });
+    if (selfAudit.error) {
+      fatal(
+        `${me.email} could not write an audit line in their OWN org — the authenticated insert happy path is broken: ${selfAudit.error.message}`
+      );
+    }
+  }
+  const auditRead = await me.client
+    .from("audit_events")
+    .select("id, org_id, event")
+    .eq("org_id", other.orgId);
+  const auditReadRows = auditRead.data ? auditRead.data.length : 0;
+  report(
+    auditRead.error === null && auditReadRows === 0,
+    auditRead.error === null
+      ? `${me.label} selecting the other organization's audit trail gets exactly 0 rows (got ${auditReadRows}; own org verified non-empty first).`
+      : `${me.label} selecting the other organization's audit trail should return 0 rows without an error, but errored: ${auditRead.error.message}`
+  );
+
+  // (l) other-org briefing_notes read by org_id: expect exactly 0 rows and no
+  // error.
+  const notesRead = await me.client
+    .from("briefing_notes")
+    .select("id, org_id, section_index")
+    .eq("org_id", other.orgId);
+  const notesReadRows = notesRead.data ? notesRead.data.length : 0;
+  report(
+    notesRead.error === null && notesReadRows === 0,
+    notesRead.error === null
+      ? `${me.label} selecting the other organization's margin notes gets exactly 0 rows (got ${notesReadRows}).`
+      : `${me.label} selecting the other organization's margin notes should return 0 rows without an error, but errored: ${notesRead.error.message}`
+  );
+}
+
+// --- phase 3: cleanup --------------------------------------------------------
+
+/**
+ * Deletes the session's own probe briefing so no perpetual GENERATING card is
+ * left behind in a real workspace. Runs after all checks, pass or fail (the
+ * finally block in main). This also live-exercises migration 0002's
+ * org-scoped briefings delete policy on every probe run. Reported in plain
+ * English but NOT a counted check; a failure prints a warning and never
+ * changes the exit code. The probe's own audit line, if (k) wrote one,
+ * survives the deletion with its briefing link blanked — by design.
+ */
+async function cleanupProbeBriefing(session: Session): Promise<void> {
+  if (session.probeBriefingId === null) {
+    return;
+  }
+  const deleted = await session.client
+    .from("briefings")
+    .delete()
+    .eq("id", session.probeBriefingId)
+    .select("id");
+  if (deleted.error) {
+    console.log(
+      `CLEANUP WARNING: ${session.label} could not delete their own probe briefing (${deleted.error.message}). A 'probe briefing' card may linger in their workspace; the next probe run will reuse and retry it. This does not affect the probe result.`
+    );
+    return;
+  }
+  const deletedRows = deleted.data ? deleted.data.length : 0;
+  if (deletedRows === 1) {
+    console.log(
+      `CLEANUP: ${session.label} deleted their own probe briefing — the workspace is left as it was found, and migration 0002's briefings delete policy just worked live.`
+    );
+  } else {
+    console.log(
+      `CLEANUP WARNING: ${session.label}'s probe-briefing delete touched ${deletedRows} row(s) instead of 1. A 'probe briefing' card may linger in their workspace; the next probe run will reuse and retry it. This does not affect the probe result.`
+    );
+  }
 }
 
 // --- main --------------------------------------------------------------------
@@ -370,8 +551,15 @@ async function main(): Promise<void> {
   await createProbeBriefing(ana);
   await createProbeBriefing(marta);
 
-  await probeUser(ana, marta);
-  await probeUser(marta, ana);
+  try {
+    await probeUser(ana, marta);
+    await probeUser(marta, ana);
+  } finally {
+    // Cleanup runs whether the checks passed or failed, so a failing probe
+    // never strands a perpetual GENERATING card in a real workspace.
+    await cleanupProbeBriefing(ana);
+    await cleanupProbeBriefing(marta);
+  }
 
   console.log("");
   if (failures > 0) {
@@ -379,12 +567,17 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   console.log(
-    `RESULT: PASS — all ${checksRun} checks passed, run as both users. ` +
+    `RESULT: PASS — all ${checksRun} checks passed (12 per user, run as both users). ` +
       "Proven: documents (cross-org select returns 0 rows; cross-org insert rejected; cross-org update touches 0 rows), " +
       "briefings (cross-org select returns 0 rows; cross-org insert rejected), " +
-      "briefing_sources (insert linking an own-org briefing to the other org's document rejected), " +
-      "generation_events (insert against the other org's briefing id rejected). " +
-      "Tables not exercised by this probe: organizations, org_members, briefing_feedback."
+      "briefing_sources (insert linking an own-org briefing to the other org's document rejected by the composite FK), " +
+      "generation_events (insert against the other org's briefing id rejected by the composite FK), " +
+      "briefing_notes (margin note against the other org's briefing id rejected by the composite FK; cross-org select returns 0 rows), " +
+      "audit_events (insert against the other org's briefing id rejected by the composite FK; cross-org select returns 0 rows " +
+      "with the reader's own org first proven non-empty, and the own-org insert happy path with actor_user_id = self exercised as that setup). " +
+      "Not exercised by this probe: organizations, org_members, briefing_feedback, " +
+      "audit_events' document-side composite reference (its briefing-side twin is), " +
+      "and the actor_user_id forgery rejection (the policy requires actor_user_id = the signed-in user, but no check attempts another value)."
   );
 }
 

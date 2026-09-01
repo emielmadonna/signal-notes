@@ -36,6 +36,17 @@ grep_absent "R2 no select(\"*\") or empty select()" '\.select\(\s*("\*"|'"'"'\*'
 # R3: no empty catch blocks
 grep_absent "R3 no empty catch {}" 'catch\s*(\([^)]*\))?\s*\{\s*\}'
 
+# R3c: comment-only catch bodies pass the regex above but still swallow errors.
+# WARN (not FAIL) — the auditor must confirm each one is a justified pattern
+# with a stated backstop (added after the card-5a audit noted the gap).
+R3C=$(grep -rnE 'catch\s*(\([^)]*\))?\s*\{' $SRC_DIRS 2>/dev/null | wc -l | tr -d ' ')
+R3C_EMPTYISH=$(perl -0777 -ne 'while(/catch\s*(?:\([^)]*\))?\s*\{((?:\s|\/\/[^\n]*\n|\/\*.*?\*\/)*)\}/gs){print "hit\n"}' $(find $SRC_DIRS -name '*.ts' -o -name '*.tsx' 2>/dev/null) 2>/dev/null | wc -l | tr -d ' ')
+if [ "${R3C_EMPTYISH:-0}" -gt 0 ]; then
+  say "WARN" "R3c $R3C_EMPTYISH comment-only catch block(s): auditor must confirm each has a stated backstop"
+else
+  say "PASS" "R3c no comment-only catch blocks"
+fi
+
 # R3b: supabase writes must reference { error } nearby (heuristic; auditor confirms)
 WRITES=$(grep -rnE '\.(insert|update|upsert|delete)\(' $SRC_DIRS 2>/dev/null | grep -vc 'error' || true)
 if [ "${WRITES:-0}" -gt 0 ]; then
@@ -52,6 +63,20 @@ if [ -n "$PROMPT_HITS" ]; then
   FAIL=1
 else
   say "PASS" "R5 prompts only in lib/prompts/"
+fi
+
+# R5b: model-facing instruction strings hiding in the AI engine / API handlers
+# instead of lib/prompts/. The R5 grep above only knows a few fixed phrases;
+# this catches second-person imperatives typical of prompts (added after catch
+# #18, where three such strings sat unversioned in lib/ai/). WARN, not FAIL:
+# the auditor confirms each hit is a genuine prompt (move it) or a protocol
+# token / error message (leave it).
+R5B=$(grep -rnE '"[^"]*(you may|you just|you wrote|resubmit|call [a-z_]+ with|do not (read|include)|only read|source set)[^"]*"' lib/ai app/api 2>/dev/null || true)
+if [ -n "$R5B" ]; then
+  say "WARN" "R5b prompt-shaped strings in lib/ai or app/api: auditor must confirm each is a token/error, not an unversioned prompt"
+  echo "$R5B" | sed 's/^/       /' | tee -a "$REPORT"
+else
+  say "PASS" "R5b no prompt-shaped instruction strings outside lib/prompts/"
 fi
 
 # KEY LEAK: service-role key must never be client-reachable

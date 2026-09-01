@@ -41,16 +41,34 @@ All Signal Notes application code, schema, and migrations: after "go".
       log line against the other org's briefing, are both rejected by the
       composite foreign keys with Postgres code 23503. Script:
       scripts/two-org-probe.ts (committed, runs inside the verifier and CI).
-      Output: shiplog/evidence/r1-probe-20260901-025459.txt.
+      Output: shiplog/evidence/r1-probe-final-24checks.txt (canonical committed
+      run; per-run timestamped copies are gitignored as transient).
       Context: the probe's composite-FK checks exist because the auditor
       REJECTED the first migration draft for exactly that hole — catch #5/#6.
+- [x] 2026-09-01 — Probe extended to 24 checks (12 per user) after
+      migration 0002: briefing_notes and audit_events cross-org inserts
+      rejected by composite FKs (code 23503), cross-org selects return 0 rows
+      with the reader's own org first proven non-empty. Output:
+      shiplog/evidence/r1-probe-final-24checks.txt. The audit trail is
+      tamper-evident by construction: inserts are pinned to the signed-in
+      user (catch #14) and audit rows survive the deletion of their subjects
+      (catch #15) — both holes caught in review BEFORE the migration was
+      applied.
 
 ### R2 — No wildcard selects
-- [ ] Verifier select-check output: evidence/r2-selects.txt
+- [x] Enforced mechanically every run: scripts/constitution.sh R2 greps app +
+      components + lib for `.select("*")` / empty `.select()` and FAILs with
+      file:line on any hit. Latest run: `PASS R2 no select("*") or empty
+      select()` — see the newest shiplog/evidence/constitution-*.txt. Every
+      committed query names its columns (incl. nested PostgREST joins).
 
 ### R3 — Every write's { error } surfaced
-- [ ] Verifier catch/error-check output + forced-failure screenshots per write:
-      evidence/r3-*.png
+- [x] Enforced two ways: (1) scripts/constitution.sh R3 FAILs on any empty
+      `catch {}`, and R3b/R3c WARN on writes/comment-only catches for the
+      auditor to confirm — every such WARN was discharged in review (each write
+      destructures and checks `{ error }`). (2) Forced-failure UI proof: the
+      P5 sweep injects 500s and asserts the error state renders distinct from
+      empty (never a fake success) — shiplog/evidence/p5-failures/*.png.
 
 ### R4 — Migrations verified live
 > One block PER migration file:
@@ -67,29 +85,81 @@ All Signal Notes application code, schema, and migrations: after "go".
       (constitution-20260901-025459.txt) — the gate works in both directions.
       Related: shiplog/evidence/r4-blank-project-proof-20260901.txt (catch #4:
       the pre-connected production database this build refused to touch).
+- [x] supabase/migrations/20260901000002_canvas_schema.sql — committed then
+      applied 04:23 via `supabase db push`, verified 04:23.
+      tracking rows: `20260901000001 | foundation`, `20260901000002 |
+      canvas_schema`. information_schema: all new columns live (documents
+      file_name/ext/size_bytes; briefings sections/word_count/citation_count;
+      briefing_notes 7 cols; audit_events 9 cols incl. actor_user_id);
+      backfill verified (ext WEB×2/TXT×10, size_bytes 1075-1251 bytes); RLS
+      true + policies on both new tables. Full paste:
+      shiplog/evidence/r4-migration-0002-verified-20260901.txt.
 
 ### R5 — Prompts in one module
-- [ ] Verifier inline-prompt check: evidence/r5-prompts.txt
+- [x] Verifier R5 PASS + a second check R5b added (catch #18) that hunts
+      second-person/imperative model-directive strings in lib/ai + app/api —
+      the class the R5 grep couldn't see. Both green. lib/prompts/briefing.ts
+      is the single home; BRIEFING_PROMPT_VERSION versions it.
 
 ### R6 — Grounding displayed
-- [ ] Screenshot: briefing view with sources panel: evidence/r6-grounding.png
+- [x] Reading view GROUNDED-IN chips + per-citation tooltips showing the exact
+      source passage. shiplog/evidence/p4-live/reading-view.png,
+      citation-tooltip.png. Independently DB-verified: all 19 citations on the
+      real briefing resolve to their 3 named sources, each quote a genuine
+      substring (server-verified at generation, unverified quotes dropped).
 
 ### R7 — Feedback stored
-- [ ] Rated + annotated in UI, then queried the row: [paste] evidence/r7-feedback.txt
+- [x] Rated "Useful" in the browser → briefing_feedback row persisted (rating
+      'up') and survives reload. shiplog/evidence/p4-live/feedback-rated.png +
+      the live E2E "feedback persists" test.
 
 ### R8 — Narrated generation
-- [ ] Mid-generation screenshot of activity log: evidence/r8-narration.png
+- [x] Mid-run activity log: real status/thinking/tool_call events + streaming
+      body, no bare spinner. shiplog/evidence/p4-live/generation-midstream.png,
+      generation-complete.png. Events are persisted rows, replayed on reopen.
 
 ### R9 — Aborts + honest non-2xx
-- [ ] Forced 500 on list fetch: error state screenshot (distinct from empty):
-      evidence/r9-error-state.png
-- [ ] Abort-on-unmount: [how verified]
+- [x] Forced-500 on the list fetch renders the error state (distinct from
+      empty), and a bad id renders not-found — E2E p5-failures. Client fetches
+      abort on unmount (AbortController in the data hooks + generation stream).
+      evidence/p5-* (from the P5 sweep).
 
 ### R10 — Loading states + optimistic updates
-- [ ] Screen recording of edit flow: evidence/r10-edit.mp4 (or gif)
+- [x] Working states on every mutation button (shared component); optimistic
+      list add/rename/delete + rating with revert-on-error. E2E p3-documents
+      (rename → SAVED + optimistic tile; delete → tile gone) + p4 feedback.
 
-### ASSUMED, not verified
-- [honesty section: list anything you didn't get to, and what it would take]
+### ASSUMED, not verified (honest)
+- AUTHOR NAMES: documents/briefings store an auth.users id, which is not
+  client-queryable and there is no org-scoped profiles table, so tile meta and
+  briefing meta omit the author name rather than invent or force a forbidden
+  join. A profiles table is the fix (see section 4).
+- FEEDBACK has no "un-rate": briefing_feedback has no delete policy, so a
+  rating can be flipped but not removed. Deliberate (the design offers no
+  un-rate control).
+- OPTIMISTIC RATING is not awaited before the UI updates; a reload within ~1s
+  of clicking can race the write. Fine in normal use; a stricter await-before-
+  paint would close it.
+- WEB-URL SSRF: the fetch-url guard blocks literal private/loopback/metadata
+  hosts and re-validates each redirect hop, but DNS-rebinding (a public host
+  that resolves to a private IP at connect time) is not defended — low risk on
+  Vercel serverless, real if self-hosted.
+- CLIENT-DISCONNECT DURABILITY: the generation run persists every event before
+  forwarding and is not aborted on disconnect, so the DB + events-replay route
+  are the real guarantee; true Vercel serverless freeze-on-disconnect semantics
+  under load were reasoned through, not stress-tested.
+- MODELS: only claude-sonnet-5 was exercised end-to-end live; the opus-5 and
+  haiku-4-5 allowlist paths are covered by types + server validation, not a
+  live run each.
+- PDF page markers: pdf-parse leaves "-- N of M --" markers in extracted
+  bodies; harmless to storage, but a briefing could theoretically quote one.
+- CITATION VERIFICATION proves PRESENCE, not SUPPORT: each stored citation quote
+  is confirmed to be a real substring of its named source document (so no quote
+  is fabricated), but the check does not prove the quote actually supports the
+  sentence it's attached to, and a very short quote can match trivially. The
+  glass box guarantees "this text is really in that document," not "this is the
+  right evidence for this claim" — that remains human judgment (which is what
+  the feedback seam is for). Flagged by Mock-Wren round 2.
 
 ---
 
@@ -99,24 +169,116 @@ All Signal Notes application code, schema, and migrations: after "go".
 > (the concrete failure it would have caused) / THE CATCH (the act + evidence) /
 > FIX + SYSTEM CHANGE. Strongest 3-4 below; the raw log has all of them.
 
-### Catch 1
-- CLAIM:
-- VICTIM:
-- THE CATCH:
-- FIX + SYSTEM CHANGE:
+These four are the strongest of 19 logged catches (full raw log:
+docs/catch-log.md). Each has a real victim, a distinct failure class, and left
+a gate behind so it cannot recur silently.
 
-### Catch 2
-### Catch 3
-### Catch 4
+### Catch 1 — The build almost ran against a live production database (#4)
+- CLAIM: the Supabase connection wired into the tooling was Signal Notes'.
+- VICTIM: a real production database for a DIFFERENT product — ~300 applied
+  migrations, live campaign/billing/contact data, its own "organizations"
+  table. Applying migration 0001 there would have collided with production
+  schema and stamped our RLS onto another product's tables.
+- THE CATCH: before any write, I ran read-only list_migrations/list_tables and
+  saw the foreign history. Zero writes were sent. Evidence:
+  shiplog/evidence/r4-wrong-project-tables-*.txt + blank-project-proof.
+- FIX + SYSTEM CHANGE: a fresh blank project was created for Signal Notes and
+  its ref PINNED in supabase/PROJECT_REF; the verifier now refuses any DB
+  check whose link or DATABASE_URL isn't that project. The build can no longer
+  point at the wrong database.
+
+### Catch 2 — Cross-organization data leak wired into the schema (#5)
+- CLAIM: "org-scoped RLS on every table; tenant isolation proven."
+- VICTIM: every organization's data — a member of org A could attach org B's
+  document to their briefing, or hang forged child rows off org B's briefings,
+  because the child-table INSERT policies checked only the row's own org_id
+  while foreign keys bypass RLS. The worst class of multi-tenant bug.
+- THE CATCH: the adversarial auditor read all 18 policies against rule 1 and
+  found the gap BEFORE the migration was applied. The two-org probe was then
+  extended to attack exactly this.
+- FIX + SYSTEM CHANGE: composite foreign keys (id, org_id) force the database
+  itself to reject a child whose parent belongs to another org; the committed
+  probe now proves it live (rejection code 23503), and it runs in CI on every
+  push — not once by hand.
+
+### Catch 3 — An audit trail anyone could forge, and that erased itself (#14/#15)
+- CLAIM: audit_events is the append-only accountability trail.
+- VICTIM: the trail's own trustworthiness — actor was free text with only
+  org-membership checked, so any member could write lines under a colleague's
+  name or as "SYSTEM"; and both foreign keys cascaded, so deleting a briefing
+  would purge its own history exactly when it mattered most.
+- THE CATCH: the auditor noticed the inconsistency (every other writable table
+  pinned identity to the signed-in user; this one didn't) and read the cascade
+  rules against the file's own "nobody can make it disappear" comment.
+- FIX + SYSTEM CHANGE: inserts are pinned to the signed-in user (actor_user_id
+  = auth.uid()), SYSTEM rows are server-only, and audit rows survive deletion
+  of their subject (on delete set null). Both fixed before apply.
+
+### Catch 4 — Prompt strings hiding in the engine, invisible to review (#18)
+- CLAIM: "every word the model reads lives in lib/prompts and NOWHERE ELSE"
+  (the prompt file's own header); verifier R5 PASS.
+- VICTIM: the operations-review surface rule 5 protects — three model-facing
+  instruction strings sat inline in the engine, unversioned, and the R5 grep
+  heuristic structurally could not see them, so its green was misleading.
+- THE CATCH: the auditor read the engine line by line and found the strings the
+  automated check missed.
+- FIX + SYSTEM CHANGE: the strings moved to versioned constants in
+  lib/prompts/, AND the verifier gained a new check (R5b) that hunts
+  second-person/imperative model-directive strings in the engine and API
+  handlers — so the whole class is now caught mechanically, not just by eye.
 
 ---
 
 ## 3. The rule I'd push back on
 
-> One rule, a real argument, and the condition under which I'd still follow it.
+The rule I'd argue with is **#10's "update local state optimistically instead
+of refetching the world."** First, the honest concession, because it's the fair
+hit: rule 10 done *correctly* means optimistic-WITH-rollback — paint the change,
+keep the server's answer, revert and surface on error — and that is exactly what
+rule 3 asks for. Read that way, there's no contradiction, and our real defect
+wasn't the rule: it was ONE un-awaited feedback upsert that painted "YOU RATED
+THIS USEFUL" before the write settled, so a reload within ~1s could have shown
+success for a save still in flight. That's a bug in one call, not a flaw in the
+principle.
+
+So my pushback is narrower and, I think, still real: the rule's wording —
+"optimistic INSTEAD OF refetching" — reads as a blanket default, and a blanket
+default is what invited that un-awaited write to look rule-compliant. The tension
+isn't optimism-vs-correctness in general; it's that "always optimistic" quietly
+licenses painting success before the system knows, on writes where that matters.
+
+My argument: for MUTATIONS THAT CARRY REAL CONSEQUENCE (a delete, a generation,
+anything another person will rely on), I'd rather show a brief working state and
+confirm on the server's answer than paint success first and reconcile later.
+Optimism should be reserved for cheap, low-stakes, easily-reverted edits (a
+title rename, a selection toggle).
+
+The condition under which I'd still follow it as written: when the write is
+genuinely idempotent and the revert-on-error path is itself tested to fire and
+be visible — which is exactly what we required in review. So I don't want the
+rule deleted; I want it to say "optimistic where the stakes and the revert path
+justify it," not "optimistic instead of refetching" as a blanket default.
 
 ---
 
 ## 4. What I'd do with another week
 
-> Ranked, with the why. Not a feature wishlist: what the system needs next.
+Ranked by what the SYSTEM needs next, not features:
+
+1. A PROFILES table (org-scoped: user_id, email, display name). Three honest
+   gaps trace to auth.users being unqueryable from the client — author names on
+   documents/briefings, real actor names on notes, the "added by" meta. One
+   small table closes all three and removes an ASSUMED-list cluster.
+2. HARDEN THE STREAM'S DURABILITY CONTRACT. The run persists every event and
+   survives client disconnect by design, but I'd add a background finalizer
+   (so a serverless freeze mid-run can't strand a 'generating' row forever) and
+   a real disconnect-under-load test, turning a reasoned guarantee into a
+   proven one.
+3. AWAIT-BEFORE-PAINT for consequential writes (section 3): make the feedback/
+   note path confirm server success before the durable "saved" state, keeping
+   optimism only for the cheap edits.
+4. WIDEN THE LIVE MODEL COVERAGE: run opus-5 and haiku-4-5 end-to-end in CI on
+   a schedule, not just sonnet-5, so a provider-side change to either path is
+   caught by the gate rather than by a user.
+5. DEFEND DNS-REBINDING on fetch-url (resolve-then-pin the IP, or an egress
+   allowlist) if this ever leaves Vercel's serverless network.
