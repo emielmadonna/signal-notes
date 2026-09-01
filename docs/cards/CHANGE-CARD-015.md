@@ -1,5 +1,5 @@
 CHANGE CARD #015
-STATUS: PENDING — awaiting Emiel. Migration 0003 is APPLIED (verified live).
+STATUS: APPROVED by Emiel, 2026-09-01 (in session). Migration 0003 is APPLIED (verified live).
 
 WHAT CHANGED: the remediation pass from an adversarial audit of the whole
 repository. Seventeen findings, in three groups.

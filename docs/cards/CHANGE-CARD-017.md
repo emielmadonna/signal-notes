@@ -1,5 +1,5 @@
 CHANGE CARD #017
-STATUS: PENDING — awaiting Emiel.
+STATUS: APPROVED by Emiel, 2026-09-01 (in session — "I approve please push").
 
 WHAT CHANGED: the pre-submission pass — SHIPLOG brought current with the repo,
 CI confirmed green on the exact head being submitted, the constitution gate run

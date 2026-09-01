@@ -1,5 +1,5 @@
 CHANGE CARD #016
-STATUS: PENDING — awaiting Emiel. Committed locally, NOT pushed to origin.
+STATUS: APPROVED by Emiel, 2026-09-01 (in session). Pushed to origin/main during the pre-submission pass.
 
 WHAT CHANGED: Part B was never blocked. The campaigns PR it reviews was quoted
 in full in the Milestone 0 brief email and had been in our possession since day
