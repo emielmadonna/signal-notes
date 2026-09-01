@@ -1,5 +1,8 @@
 # SHIPLOG — Signal Notes
 
+**Production: https://signal-notes-three.vercel.app** (the stable alias; it
+always points at the newest production deploy of `main`).
+
 > This is a live diary: entries are written at the moment they happen, with real
 > timestamps. Nothing here is reconstructed after the fact. Evidence files live
 > in shiplog/evidence/ and are referenced by name.
@@ -167,9 +170,9 @@ All Signal Notes application code, schema, and migrations: after "go".
 
 > Distilled from docs/catch-log.md (full log committed). Format: CLAIM / VICTIM
 > (the concrete failure it would have caused) / THE CATCH (the act + evidence) /
-> FIX + SYSTEM CHANGE. Strongest 3-4 below; the raw log has all of them.
+> FIX + SYSTEM CHANGE. Strongest 4-5 below; the raw log has all of them.
 
-These four are the strongest of 19 logged catches (full raw log:
+These five are the strongest of 25 logged catches (full raw log:
 docs/catch-log.md). Each has a real victim, a distinct failure class, and left
 a gate behind so it cannot recur silently.
 
@@ -226,6 +229,28 @@ a gate behind so it cannot recur silently.
   lib/prompts/, AND the verifier gained a new check (R5b) that hunts
   second-person/imperative model-directive strings in the engine and API
   handlers — so the whole class is now caught mechanically, not just by eye.
+
+### Catch 5 — "We don't have the source" was a claim nobody tested (#25)
+- CLAIM: PART-B.md, in a banner, in bold: "BLOCKED ON SOURCE MATERIAL — not
+  yet executable, and deliberately not fabricated… That PR is not in this
+  workspace" — the refusal framed as the constitution's own integrity rule.
+- VICTIM: a graded deliverable sat unexecuted for the entire build while the
+  campaigns PR it needed was quoted in full in the founding brief, in our
+  possession since day zero. Worse than a missing file, because the excuse was
+  persuasive: it would have scored as missing work dressed up as integrity.
+- THE CATCH: external review — Emiel's mock-Wren round read the ORIGINAL BRIEF
+  against the deliverables folder instead of the deliverables against each
+  other. No agent in this repo caught it across two mock-Wren rounds and
+  twenty-four prior catches, because every internal review took "the PR is not
+  in the workspace" as a premise instead of a claim to test.
+- FIX + SYSTEM CHANGE: the PR is committed verbatim (deliverables/
+  PART-B-SOURCE.md, sha256-pinned, diffable against every Part B quote) and
+  Part B is executed against it for real. The system change is an intake rule
+  in CLAUDE.md: every inbound document is split ON ARRIVAL into INSTRUCTIONS
+  and SOURCE MATERIAL, and the source material is filed in the repo on day
+  zero. We had a rule against claiming what we hadn't observed — and no rule
+  against failing to observe what we already had. "I don't have it" needs
+  evidence like any other claim.
 
 ---
 
@@ -402,3 +427,14 @@ platform freeze is still the right belt-and-braces and stays on that list.
 Evidence: `shiplog/evidence/p6-constitution-green.txt`,
 `shiplog/evidence/r1-probe-p6-24checks.txt`, `shiplog/evidence/p6-ingestion/`,
 `shiplog/evidence/p6-generation/`.
+
+### 5.6 Part B, executed late (2026-09-01)
+
+Part B was executed for real today against the committed source
+(deliverables/PART-B-SOURCE.md): 29 ranked findings, 5 of them S0 — after
+sitting "blocked on source material" for the whole build. It was late because
+the campaigns PR had been in the founding brief since day zero and nobody
+inside the repo tested the claim that we didn't have it; an external review
+round caught it (catch #25, featured as Catch 5 in §2). The system change is
+the intake rule now in CLAUDE.md: inbound documents are split on arrival into
+instructions and source material, and the source is committed on day zero.

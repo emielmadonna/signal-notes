@@ -1,0 +1,356 @@
+== Constitution Verifier == 20260901-160150
+PASS   R2 no select("*") or empty select()
+PASS   R3 no empty catch {}
+PASS   R3b (2 recorded exceptions)
+PASS   R3c (9 recorded exceptions)
+PASS   R5b
+PASS   R3b/R3c/R5b conventions (recorded exceptions verified)
+PASS   KEY no SERVICE_ROLE in app code
+PASS   KEY no hardcoded Anthropic key (sk-ant-) anywhere
+PASS   KEY ANTHROPIC_API_KEY only reachable from server code
+PASS   PIN linked project matches pinned ref rqvyiclwhihhsxymenrp
+PASS   R1a RLS enabled + policy present on every public table
+PASS   R4 migration 20260901000001 applied (tracking row present)
+PASS   R4 migration 20260901000002 applied (tracking row present)
+PASS   R4 migration 20260901000003 applied (tracking row present)
+PASS   R4 migration 20260901000004 applied (tracking row present)
+PASS   R1b two-org probe (output: shiplog/evidence/r1-probe-20260901-160150.txt)
+Generating route types...
+✓ Types generated successfully
+PASS   typecheck
+PASS   lint
+TAP version 13
+# Subtest: absent or blank resolves to the default
+ok 1 - absent or blank resolves to the default
+  ---
+  duration_ms: 0.324125
+  type: 'test'
+  ...
+# Subtest: every allowlisted model is accepted verbatim
+ok 2 - every allowlisted model is accepted verbatim
+  ---
+  duration_ms: 0.119584
+  type: 'test'
+  ...
+# Subtest: anything off the list is rejected, not silently defaulted
+ok 3 - anything off the list is rejected, not silently defaulted
+  ---
+  duration_ms: 0.058125
+  type: 'test'
+  ...
+# Subtest: the formats with a real parser keep their strategy
+ok 4 - the formats with a real parser keep their strategy
+  ---
+  duration_ms: 0.66875
+  type: 'test'
+  ...
+# Subtest: the whole plain-text family is accepted, not just .txt and .md
+ok 5 - the whole plain-text family is accepted, not just .txt and .md
+  ---
+  duration_ms: 0.120583
+  type: 'test'
+  ...
+# Subtest: alternate spellings collapse onto one label
+ok 6 - alternate spellings collapse onto one label
+  ---
+  duration_ms: 0.045542
+  type: 'test'
+  ...
+# Subtest: the extension match is case-insensitive
+ok 7 - the extension match is case-insensitive
+  ---
+  duration_ms: 0.033625
+  type: 'test'
+  ...
+# Subtest: a format we cannot read gets a NAMED way out, not a generic refusal
+ok 8 - a format we cannot read gets a NAMED way out, not a generic refusal
+  ---
+  duration_ms: 0.122791
+  type: 'test'
+  ...
+# Subtest: REGRESSION: a file with no extension is classified by its BYTES
+ok 9 - REGRESSION: a file with no extension is classified by its BYTES
+  ---
+  duration_ms: 0.282167
+  type: 'test'
+  ...
+# Subtest: sniffed plain text and sniffed markup are told apart
+ok 10 - sniffed plain text and sniffed markup are told apart
+  ---
+  duration_ms: 0.351291
+  type: 'test'
+  ...
+# Subtest: binary that is not a format we know is still refused
+ok 11 - binary that is not a format we know is still refused
+  ---
+  duration_ms: 0.112584
+  type: 'test'
+  ...
+# Subtest: extensionOf and fileNameStem handle dotted and undotted names
+ok 12 - extensionOf and fileNameStem handle dotted and undotted names
+  ---
+  duration_ms: 0.187709
+  type: 'test'
+  ...
+# Subtest: the accept attribute and the human summary cover the same table
+ok 13 - the accept attribute and the human summary cover the same table
+  ---
+  duration_ms: 0.26125
+  type: 'test'
+  ...
+# Subtest: every label the table emits is one migration 0004 allows
+ok 14 - every label the table emits is one migration 0004 allows
+  ---
+  duration_ms: 0.053125
+  type: 'test'
+  ...
+# [d6b5da] resolveOrgId: org_members lookup failed: { message: 'relation "org_members" does not exist' }
+# Subtest: returns the org id and orders deterministically
+ok 15 - returns the org id and orders deterministically
+  ---
+  duration_ms: 0.653333
+  type: 'test'
+  ...
+# Subtest: a user with no membership is a 403, not a crash or a silent null
+ok 16 - a user with no membership is a 403, not a crash or a silent null
+  ---
+  duration_ms: 0.104833
+  type: 'test'
+  ...
+# Subtest: a lookup failure is a 500 that does NOT echo the driver text
+ok 17 - a lookup failure is a 500 that does NOT echo the driver text
+  ---
+  duration_ms: 0.48225
+  type: 'test'
+  ...
+# Subtest: blocks the obvious loopback and private literals
+ok 18 - blocks the obvious loopback and private literals
+  ---
+  duration_ms: 0.612625
+  type: 'test'
+  ...
+# Subtest: blocks the alternate IPv4 spellings the URL parser normalizes
+ok 19 - blocks the alternate IPv4 spellings the URL parser normalizes
+  ---
+  duration_ms: 0.118833
+  type: 'test'
+  ...
+# Subtest: REGRESSION: blocks IPv4-mapped IPv6 literals
+ok 20 - REGRESSION: blocks IPv4-mapped IPv6 literals
+  ---
+  duration_ms: 0.382417
+  type: 'test'
+  ...
+# Subtest: blocks native IPv6 loopback, link-local and unique-local
+ok 21 - blocks native IPv6 loopback, link-local and unique-local
+  ---
+  duration_ms: 0.060166
+  type: 'test'
+  ...
+# Subtest: REGRESSION: does NOT block real domains starting fc/fd
+ok 22 - REGRESSION: does NOT block real domains starting fc/fd
+  ---
+  duration_ms: 0.080625
+  type: 'test'
+  ...
+# Subtest: allows ordinary public hosts
+ok 23 - allows ordinary public hosts
+  ---
+  duration_ms: 0.046
+  type: 'test'
+  ...
+# Subtest: blocks reserved special-use names
+ok 24 - blocks reserved special-use names
+  ---
+  duration_ms: 0.076167
+  type: 'test'
+  ...
+# Subtest: an unparseable IPv6 literal fails closed
+ok 25 - an unparseable IPv6 literal fails closed
+  ---
+  duration_ms: 0.036792
+  type: 'test'
+  ...
+# rate limiter unavailable for bucket "generate" — ALLOWING this request; if migration 0003 is unapplied, apply it: function consume_rate_limit does not exist
+# rate limiter returned an unreadable row for bucket "upload" — ALLOWING this request.
+# Subtest: allows a request the RPC says is inside the ceiling
+ok 26 - allows a request the RPC says is inside the ceiling
+  ---
+  duration_ms: 1.217834
+  type: 'test'
+  ...
+# Subtest: denies, and reports a retry delay, when the ceiling is hit
+ok 27 - denies, and reports a retry delay, when the ceiling is hit
+  ---
+  duration_ms: 0.111041
+  type: 'test'
+  ...
+# Subtest: a zero retry delay is reported as at least one second
+ok 28 - a zero retry delay is reported as at least one second
+  ---
+  duration_ms: 0.056833
+  type: 'test'
+  ...
+# Subtest: FAILS OPEN when the limiter itself errors (documented trade)
+ok 29 - FAILS OPEN when the limiter itself errors (documented trade)
+  ---
+  duration_ms: 0.295583
+  type: 'test'
+  ...
+# Subtest: FAILS OPEN on an unreadable row rather than guessing
+ok 30 - FAILS OPEN on an unreadable row rather than guessing
+  ---
+  duration_ms: 0.062834
+  type: 'test'
+  ...
+# Subtest: every bucket produces a human sentence naming a wait
+ok 31 - every bucket produces a human sentence naming a wait
+  ---
+  duration_ms: 0.112875
+  type: 'test'
+  ...
+# Subtest: REGRESSION: an out-of-range numeric entity does not throw
+ok 32 - REGRESSION: an out-of-range numeric entity does not throw
+  ---
+  duration_ms: 0.977958
+  type: 'test'
+  ...
+# Subtest: an undecodable entity is left as the literal text the page sent
+ok 33 - an undecodable entity is left as the literal text the page sent
+  ---
+  duration_ms: 0.065084
+  type: 'test'
+  ...
+# Subtest: lone surrogates are refused rather than producing broken text
+ok 34 - lone surrogates are refused rather than producing broken text
+  ---
+  duration_ms: 0.400708
+  type: 'test'
+  ...
+# Subtest: valid entities still decode, including astral ones
+ok 35 - valid entities still decode, including astral ones
+  ---
+  duration_ms: 0.11525
+  type: 'test'
+  ...
+# Subtest: extracts prose and drops scripts, styles and markup
+ok 36 - extracts prose and drops scripts, styles and markup
+  ---
+  duration_ms: 0.175291
+  type: 'test'
+  ...
+# Subtest: a page with no readable text yields an empty string, not a throw
+ok 37 - a page with no readable text yields an empty string, not a throw
+  ---
+  duration_ms: 0.041333
+  type: 'test'
+  ...
+# Subtest: a title-less page reports a null title
+ok 38 - a title-less page reports a null title
+  ---
+  duration_ms: 0.076542
+  type: 'test'
+  ...
+# Subtest: REGRESSION: unclosed <script> tags cannot blow up the extractor
+ok 39 - REGRESSION: unclosed <script> tags cannot blow up the extractor
+  ---
+  duration_ms: 22.231708
+  type: 'test'
+  ...
+# Subtest: REGRESSION: unclosed comments and titles cannot blow up the extractor
+ok 40 - REGRESSION: unclosed comments and titles cannot blow up the extractor
+  ---
+  duration_ms: 46.172417
+  type: 'test'
+  ...
+# Subtest: a 19 MB benign page (the upload cap) stays well inside budget
+ok 41 - a 19 MB benign page (the upload cap) stays well inside budget
+  ---
+  duration_ms: 749.47575
+  type: 'test'
+  ...
+# Subtest: content of a raw-text element is dropped, not emitted as prose
+ok 42 - content of a raw-text element is dropped, not emitted as prose
+  ---
+  duration_ms: 0.116875
+  type: 'test'
+  ...
+# Subtest: a tag that merely starts like a raw-text element is still unwrapped
+ok 43 - a tag that merely starts like a raw-text element is still unwrapped
+  ---
+  duration_ms: 0.330708
+  type: 'test'
+  ...
+# Subtest: text after an unclosed <script> is still recovered
+ok 44 - text after an unclosed <script> is still recovered
+  ---
+  duration_ms: 0.038583
+  type: 'test'
+  ...
+# Subtest: REGRESSION: a NUL byte is removed (Postgres text cannot hold one)
+ok 45 - REGRESSION: a NUL byte is removed (Postgres text cannot hold one)
+  ---
+  duration_ms: 0.463458
+  type: 'test'
+  ...
+# Subtest: REGRESSION: a lone surrogate becomes U+FFFD, so JSON can encode it
+ok 46 - REGRESSION: a lone surrogate becomes U+FFFD, so JSON can encode it
+  ---
+  duration_ms: 0.130667
+  type: 'test'
+  ...
+# Subtest: a stray LOW surrogate is caught too, not just a high one
+ok 47 - a stray LOW surrogate is caught too, not just a high one
+  ---
+  duration_ms: 0.040833
+  type: 'test'
+  ...
+# Subtest: a VALID surrogate pair is left completely alone
+ok 48 - a VALID surrogate pair is left completely alone
+  ---
+  duration_ms: 0.039583
+  type: 'test'
+  ...
+# Subtest: tabs and newlines survive; other control characters do not
+ok 49 - tabs and newlines survive; other control characters do not
+  ---
+  duration_ms: 0.087833
+  type: 'test'
+  ...
+# Subtest: line endings are normalized to \\n
+ok 50 - line endings are normalized to \\n
+  ---
+  duration_ms: 0.033334
+  type: 'test'
+  ...
+# Subtest: sanitizing does NOT trim — the caller decides what empty means
+ok 51 - sanitizing does NOT trim — the caller decides what empty means
+  ---
+  duration_ms: 0.069417
+  type: 'test'
+  ...
+# Subtest: a document that is ONLY unusable characters sanitizes to empty
+ok 52 - a document that is ONLY unusable characters sanitizes to empty
+  ---
+  duration_ms: 0.0335
+  type: 'test'
+  ...
+# Subtest: sanitizeLine collapses whitespace and strips the same characters
+ok 53 - sanitizeLine collapses whitespace and strips the same characters
+  ---
+  duration_ms: 0.17975
+  type: 'test'
+  ...
+1..53
+# tests 53
+# suites 0
+# pass 53
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 992.6455
+PASS   unit tests
+SKIP   e2e suite NOT RUN (set RUN_E2E=1 with a live DB + seeded users to include it)
+
+PASS   CONSTITUTION: all checks green. Evidence: shiplog/evidence/constitution-20260901-160150.txt
