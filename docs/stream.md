@@ -46,3 +46,4 @@
 02:53:15 | auditor | Delta on the sign-in fixes: PASS. The return-address guard now bounces anything that resolves off our own site, so the backslash and tab tricks both dead-end at the documents page; the sign-out button shows a busy state; the phantom pre-authorized route is gone. Both my rejections are resolved.
 02:54:10 | dispatcher | The migration file is committed. Applying it to the Signal Notes database now — file first, database second, proof third.
 02:56:45 | dispatcher | P1 build work is done and every check is green against the live database. Filing four Change Cards for Emiel, pushing the branch to GitHub, and holding all merges for his audit.
+02:59:10 | dispatcher | The first automatic check on GitHub caught a real gap: type-checking behaves differently on a fresh machine than on mine. Teaching the rule checker to generate the framework's types first, then pushing the fix.

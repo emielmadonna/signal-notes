@@ -97,7 +97,8 @@ dbq() {  # $1 = sql; prints rows, tab-separated (psql -At compatible)
 # one apply_migration away from being polluted).
 if [ -f supabase/PROJECT_REF ]; then
   PIN=$(tr -d '[:space:]' < supabase/PROJECT_REF)
-  LINKED=$(tr -d '[:space:]' < supabase/.temp/project-ref 2>/dev/null || echo "")
+  LINKED=""
+  [ -f supabase/.temp/project-ref ] && LINKED=$(tr -d '[:space:]' < supabase/.temp/project-ref)
   if [ -n "$LINKED" ] && [ "$LINKED" != "$PIN" ]; then
     say "FAIL" "PIN linked project ($LINKED) is not the pinned Signal Notes project ($PIN)"
     FAIL=1
@@ -160,6 +161,11 @@ fi
 
 # ---- Types + tests ----
 if [ -f tsconfig.json ]; then
+  # Next generates route types (.next/types) that tsc needs; a clean checkout
+  # (CI) has none, so generate them first. Caught by the first CI run (#10).
+  if grep -q '"next"' package.json 2>/dev/null; then
+    npx next typegen >> "$REPORT" 2>&1 || true
+  fi
   if npx tsc --noEmit >> "$REPORT" 2>&1; then say "PASS" "typecheck"; else say "FAIL" "typecheck"; FAIL=1; fi
 fi
 if [ -f package.json ] && grep -q '"test"' package.json; then

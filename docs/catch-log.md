@@ -111,3 +111,14 @@ specs without asserting unobserved results, builders don't add them.
   sign-out has no busy state at all. Evidence: documents/page.tsx lines 53-57.
 - FIX + SYSTEM CHANGE: a reusable pending-aware submit button component that
   every later server-action form uses, so the gap cannot recur form by form.
+
+## Catch #10 — 2026-09-01 02:58 (first CI run on GitHub)
+- CLAIM: "typecheck passes" (true on this machine, pasted in three audits).
+- VICTIM: any merge relying on a green local run — CI would block every push,
+  or worse, typecheck could silently diverge between machines.
+- THE CATCH: the very first CI run failed: a clean checkout has none of the
+  framework's generated route types, which only exist locally as leftovers of
+  a build. Evidence: GitHub Actions run 33494862048, "FAIL typecheck".
+- FIX + SYSTEM CHANGE: the verifier now generates those types itself before
+  type-checking, so local and CI runs check the same thing. The fix is proven
+  by the next CI run on this same branch.
