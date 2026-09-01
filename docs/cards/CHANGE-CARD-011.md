@@ -1,5 +1,5 @@
 CHANGE CARD #011
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; 1:1 surfaces verified; merged by dispatcher)
 WHAT CHANGED: You can now compose a briefing (pick documents, pick the AI model)
 and watch it being written live — the briefing text streams in with a blinking
 cursor while a timestamped activity log shows the AI planning, reading each

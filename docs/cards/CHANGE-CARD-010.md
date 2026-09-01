@@ -1,5 +1,5 @@
 CHANGE CARD #010
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; 1:1 surfaces verified; merged by dispatcher)
 WHAT CHANGED: The briefing engine. On the server, the AI reads only the
 documents you selected, narrates its work as it goes (planning, reading each
 document, thinking, drafting), streams the briefing as it writes it, and

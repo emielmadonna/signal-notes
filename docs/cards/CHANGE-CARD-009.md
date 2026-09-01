@@ -1,5 +1,5 @@
 CHANGE CARD #009
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; 1:1 surfaces verified; merged by dispatcher)
 WHAT CHANGED: Opening a document shows it in full with inline title/body
 editing, its "used in" briefings, and its file history; renaming and deleting
 work from the selection bar. A link to a document that isn't yours (or doesn't

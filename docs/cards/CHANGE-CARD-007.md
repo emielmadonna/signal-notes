@@ -1,5 +1,5 @@
 CHANGE CARD #007
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; 1:1 surfaces verified; merged by dispatcher)
 WHAT CHANGED: The workspace lists are real. Briefings render as paper cards
 (date, status, title, source/notes/rating, hover tray of attached documents,
 FLIP reflow); documents render as file tiles you can select. Search filters

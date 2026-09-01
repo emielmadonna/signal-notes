@@ -1,5 +1,5 @@
 CHANGE CARD #012
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; 1:1 surfaces verified; merged by dispatcher)
 WHAT CHANGED: Reading a finished briefing. The editorial paper page shows the
 briefing with every claim carrying a citation you can hover to see the exact
 source passage and which document it came from; a Useful / not-useful control

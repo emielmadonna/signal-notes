@@ -1,5 +1,5 @@
 CHANGE CARD #005
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; 1:1 surfaces verified; merged by dispatcher)
 WHAT CHANGED: The app now looks like the design you approved. The full token
 layer (both themes, exact colors, the three typefaces), every shared primitive
 (file icons, pill buttons with working states, skeletons, sheets, toast, the

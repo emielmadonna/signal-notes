@@ -1,5 +1,5 @@
 CHANGE CARD #006
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; 1:1 surfaces verified; merged by dispatcher)
 WHAT CHANGED: The database now knows everything the approved design needs:
 documents carry their file details (name, type, size — existing rows
 backfilled), briefings can be deleted and can store their structured sections

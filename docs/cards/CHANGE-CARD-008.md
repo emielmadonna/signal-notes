@@ -1,5 +1,5 @@
 CHANGE CARD #008
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; 1:1 surfaces verified; merged by dispatcher)
 WHAT CHANGED: You can add documents every way the design promises — paste text,
 drop or browse a file (PDF, DOCX, TXT, MD, RTF), or fetch a web page by URL.
 Each becomes a real document with its text extracted; every failure says so in

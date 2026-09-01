@@ -1,5 +1,5 @@
 CHANGE CARD #013
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; 1:1 surfaces verified; merged by dispatcher)
 WHAT CHANGED: The hardening + verification sweep. A committed end-to-end test
 suite now drives every route and surface of the real app against the real
 database: sign-in and the auth wall, all four document states incl. forced
