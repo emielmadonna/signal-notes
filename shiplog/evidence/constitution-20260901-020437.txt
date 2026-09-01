@@ -1,0 +1,11 @@
+== Constitution Verifier == 20260901-020437
+PASS   R2 no select("*") or empty select()
+PASS   R3 no empty catch {}
+PASS   R3b writes reference their { error }
+PASS   R5 prompts only in lib/prompts/
+PASS   KEY no SERVICE_ROLE in app code
+PASS   KEY no hardcoded Anthropic key (sk-ant-) anywhere
+PASS   KEY ANTHROPIC_API_KEY only reachable from server code
+WARN   DB checks skipped: DATABASE_URL not set (activate in foundation phase)
+
+PASS   CONSTITUTION: all checks green. Evidence: shiplog/evidence/constitution-20260901-020437.txt

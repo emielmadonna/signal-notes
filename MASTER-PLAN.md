@@ -51,7 +51,12 @@ Owner: you + one Claude Code session (acting as Dispatcher-to-be).
 - P0.3 DESIGN (you, in parallel, already running): run the DESIGN-PROMPTS.md
   master prompt in Claude Design; iterate to the acceptance bar; export the
   token/component inventory as docs/design/DESIGN-SPEC.md plus screen exports.
-  Artifact: DESIGN-SPEC.md. This gates P2, not P1.
+  Artifact: DESIGN-SPEC.md. This gates P2, not P1. NOTE (2026-09-01): the
+  design prompt's composer surface now needs a quiet model picker, and the
+  generation surface now needs the briefing body streaming in live as the
+  centerpiece with the labeled activity log (status / thinking / tool calls)
+  alongside — DESIGN-PROMPTS.md has been amended; re-run or patch the design
+  accordingly before approving the spec.
 - P0.4 Mission Control (OPTIONAL, hard 2h cap): tiny local page rendering
   stream.md + pending cards + catch counter. Kill at 2h; tailing stream.md is
   the fallback.
@@ -61,8 +66,10 @@ Owner: you + one Claude Code session (acting as Dispatcher-to-be).
   Artifact: CHANGE-CARD-000 (practice), proving the loop works before the clock.
 - P0.6 LLM provider ready: API key created (Anthropic recommended), billing
   enabled, a rough cost cap decided, key stored for local + Vercel server env
-  ONLY (never NEXT_PUBLIC_, never committed). Pick the generation model now so
-  P4 doesn't stall on a decision.
+  ONLY (never NEXT_PUBLIC_, never committed). Pick the DEFAULT generation model
+  now (claude-sonnet-5) so P4 doesn't stall — and fix the short list the in-app
+  model selector offers (claude-sonnet-5 default; claude-opus-5 for depth;
+  claude-haiku-4-5 for speed), since the UI ships model selection (see P4).
 - P0.7 scripts/gatecheck.ts built alongside constitution.sh (it is harness, so
   pre-go legal): runs the verifier, executes the per-rule probes for a given
   card, captures screenshots via headless browser, and emits the card's PROOF
@@ -79,7 +86,10 @@ Owner: Dispatcher + Builder-1 + Auditor. You: approve ~4 cards.
 - Migration 0001: organizations, org_members (user->org), documents, briefings,
   briefing_sources, briefing_feedback, generation_events. Org-scoped RLS
   policies on EVERY table including children. Committed before applied,
-  verified after (R4 evidence pasted to SHIPLOG).
+  verified after (R4 evidence pasted to SHIPLOG). Streaming-ready columns from
+  day one so no later migration is needed: briefings.model (the model that
+  generated it) and generation_events.kind
+  (status | thinking | tool_call | text_delta).
 - scripts/seed.ts: 2 orgs ("Northwind Advisory", "Meridian Group"), 1+ user
   each, 6-8 realistic documents each.
 - scripts/two-org-probe.ts working; first R1 evidence saved.
@@ -109,17 +119,31 @@ Gated on DESIGN-SPEC.md. Owner: Builder-2.
 - Artifacts: cards 6-8, forced-500 screenshots (R3/R9), edit recording (R10),
   probe re-run after new tables/policies touched.
 
-## P4 — BRIEFINGS (~3h): rules 5, 6, 7, 8 territory. The product's heart.
+## P4 — BRIEFINGS (~3.5h): rules 5, 6, 7, 8 territory. The product's heart.
 
 - lib/prompts/briefing.ts: the generation prompt, versioned, alone (R5).
-- Generation route: selects docs (named columns), streams/persists plain-English
-  generation_events as it works (R8's data), writes briefing + briefing_sources
-  (R6's data). Failure path stores status=failed with the partial log.
-- UI: composer (selection, zero-docs edge), live generation screen consuming
-  generation_events, briefing view (grounding panel, feedback seam wired to
-  briefing_feedback, log replay), history with generating/failed rows.
-- Artifacts: cards 9-12, mid-generation + failure screenshots, feedback row
-  query output (R7), SHIPLOG R5-R8 entries.
+- Generation route: selects docs (named columns), calls Anthropic with
+  streaming ON, and relays every event kind as it arrives — plain-English
+  status lines, the model's THINKING (rendered distinctly, quiet mono),
+  TOOL CALLS labeled in human terms ("Reading document 'Acme call, Aug 12'",
+  never raw JSON), and the briefing body itself as live text streaming
+  token-by-token into the view. All persisted as generation_events rows
+  (kind: status | thinking | tool_call | text_delta) so the log replays
+  faithfully. Writes briefing + briefing_sources (R6's data). Failure path
+  stores status=failed with the partial log AND the partial body.
+- MODEL SELECTION: the composer carries a quiet model picker (from the P0.6
+  short list, default claude-sonnet-5). The chosen model is stored on the
+  briefing row and shown in the briefing's mono metadata, so every output is
+  traceable to the model that wrote it. The server validates the model against
+  the allowed list (never trusts the client string blindly).
+- UI: composer (selection, zero-docs edge, model picker), live generation
+  screen: streaming briefing text as the centerpiece with the labeled activity
+  log (status/thinking/tool calls) alongside — rule 8 satisfied by BOTH, no
+  bare spinner anywhere. Briefing view (grounding panel, feedback seam wired
+  to briefing_feedback, log replay incl. thinking + tool calls), history with
+  generating/failed rows.
+- Artifacts: cards 9-12, mid-stream screenshot (partial body + live log),
+  failure screenshots, feedback row query output (R7), SHIPLOG R5-R8 entries.
 
 ## P5 — HARDENING + SHIPLOG (~2h)
 
