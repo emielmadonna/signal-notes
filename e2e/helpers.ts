@@ -33,6 +33,26 @@ export async function signIn(page: Page, email: string): Promise<void> {
   await page.waitForURL((u) => !u.pathname.startsWith("/signin"), { timeout: 20_000 });
 }
 
+/**
+ * Grab a real document id owned by the currently signed-in user, the way a
+ * user reaches one: open the first document tile and read the id the router
+ * lands on. Used by the P5 sweep so the responsive + isolation specs point at
+ * a genuine org-scoped id instead of a hard-coded guess.
+ */
+export async function firstOwnDocumentId(page: Page): Promise<string> {
+  await page.goto("/");
+  const tile = page
+    .locator('main [role="button"][aria-label*="selected"]')
+    .first();
+  await tile.waitFor({ state: "visible", timeout: 15_000 });
+  await tile.hover();
+  await page.getByRole("button", { name: /^Open / }).first().click();
+  await page.waitForURL(/\/documents\/[0-9a-f-]+/, { timeout: 15_000 });
+  const m = page.url().match(/\/documents\/([0-9a-f-]+)/);
+  if (!m) throw new Error("could not capture a document id from the workspace");
+  return m[1];
+}
+
 /** Screenshot into shiplog/evidence/<dir>/<name>.png (SHIPLOG references these). */
 export async function evidence(page: Page, dir: string, name: string): Promise<void> {
   const target = path.join("shiplog", "evidence", dir);

@@ -53,16 +53,12 @@ test("workspace shell live: org name, sections, account menu, theme toggle", asy
   await evidence(page, "p2-visual", "workspace-light");
 });
 
-test("design gallery: primitives in both themes", async ({ page }) => {
-  await signIn(page, USERS.ana.email);
-  await page.goto("/design");
-  await evidence(page, "p2-visual", "gallery-top-dark");
-  await setTheme(page, "dark");
-  await page.goto("/design");
-  await page.mouse.wheel(0, 1400);
-  await page.waitForTimeout(400);
-  await evidence(page, "p2-visual", "gallery-mid-dark");
-});
+// NOTE (P5 card-013): the "design gallery: primitives in both themes" test
+// was removed here — the /design gallery is DELETED in P5 hardening (its own
+// header said so), so a test that navigated to it would only photograph the
+// not-found page. The gallery's job (proving the ui-sn primitives render in
+// both themes) is now covered live by the real product surfaces across the
+// p5-* specs.
 
 test("not-found + auth wall + 768px", async ({ page }) => {
   // unauthenticated protected path → redirected to signin with next
