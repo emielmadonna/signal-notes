@@ -1,4 +1,4 @@
-import { Page, expect } from "@playwright/test";
+import { Page, expect, test } from "@playwright/test";
 import { readFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 
@@ -23,6 +23,69 @@ export function seedPassword(): string {
   const pw = process.env.SEED_USER_PASSWORD;
   if (!pw) throw new Error("SEED_USER_PASSWORD missing (env or .env.local)");
   return pw;
+}
+
+/**
+ * Guard for the tests that drive a REAL model run.
+ *
+ * Without ANTHROPIC_API_KEY the SDK cannot authenticate; the engine writes its
+ * honest "this briefing didn't finish", and the test then waits out its full
+ * timeout for a COMPLETE that can never arrive — ten minutes of CI spent
+ * reporting an unset secret as though it were a product defect.
+ *
+ * This SKIPS those tests when the key is absent, and ONLY then: with the key
+ * present nothing about them changes, and nothing is asserted more weakly. A
+ * skip is the truthful state — "this path was not exercised" — rather than
+ * either a false green or a misleading red, and the CI job annotates the run
+ * with a warning so an unset secret cannot pass unnoticed.
+ */
+export function requireModelKey(): void {
+  loadEnv();
+  test.skip(
+    !process.env.ANTHROPIC_API_KEY,
+    "ANTHROPIC_API_KEY is not set, so no real generation can run. Add it as a repository secret to exercise this path."
+  );
+}
+
+/**
+ * Wait for a just-clicked "Generate briefing" to reach the generation surface
+ * — or SKIP the test if the run was refused by the rate limiter.
+ *
+ * Migration 0003 meters generation at 10 per hour per user, and this suite
+ * spends two of them on every full run against a single seeded account. So a
+ * developer (or CI) running the suite a few times in an hour will legitimately
+ * be refused, and the truthful report of that is "this path was not
+ * exercised", not "the product is broken" — the 429 is the control working
+ * exactly as designed.
+ *
+ * The skip is conditioned on OBSERVING the limiter's own message, never on a
+ * generic failure: anything else still fails the test.
+ */
+export async function reachGenerationSurfaceOrSkip(page: Page): Promise<void> {
+  const never = new Promise<never>(() => {});
+  const arrived = page
+    .waitForURL(/\/briefings\/[0-9a-f-]+\/generating/, { timeout: 30_000 })
+    .then(() => "arrived" as const)
+    .catch(() => never);
+  const refused = page
+    .getByText(/hourly limit on briefing generations/i)
+    .first()
+    .waitFor({ state: "visible", timeout: 30_000 })
+    .then(() => "refused" as const)
+    .catch(() => never);
+  const timedOut = new Promise<"timeout">((r) =>
+    setTimeout(() => r("timeout"), 31_000)
+  );
+
+  const outcome = await Promise.race([arrived, refused, timedOut]);
+  test.skip(
+    outcome === "refused",
+    "The generation rate limit (10/hour, migration 0003) refused this run, so the live path was not exercised. Wait for the window to roll over and re-run."
+  );
+  expect(
+    outcome,
+    "generate was clicked but the generation surface never opened"
+  ).toBe("arrived");
 }
 
 /** Sign in through the real form, like a user would. */

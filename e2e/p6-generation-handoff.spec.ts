@@ -1,5 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { signIn, evidence, firstCompleteBriefingId, USERS } from "./helpers";
+import {
+  signIn,
+  evidence,
+  firstCompleteBriefingId,
+  reachGenerationSurfaceOrSkip,
+  requireModelKey,
+  USERS,
+} from "./helpers";
 
 /**
  * What happens when a run FINISHES.
@@ -15,6 +22,7 @@ import { signIn, evidence, firstCompleteBriefingId, USERS } from "./helpers";
 test.describe.configure({ mode: "serial" });
 
 test("a finished run opens the briefing by itself", async ({ page }) => {
+  requireModelKey();
   // A real generation: model turns, tool calls and all.
   test.setTimeout(300_000);
   await signIn(page, USERS.northwind.email);
@@ -32,9 +40,7 @@ test("a finished run opens the briefing by itself", async ({ page }) => {
   await page.getByRole("button", { name: /generate briefing/i }).first().click();
 
   // The composer hands off to the generation surface…
-  await page.waitForURL(/\/briefings\/[0-9a-f-]+\/generating/, {
-    timeout: 30_000,
-  });
+  await reachGenerationSurfaceOrSkip(page);
   await expect(
     page.getByText(/GENERATING|CONNECTING TO THE RUN/).first()
   ).toBeVisible({ timeout: 30_000 });

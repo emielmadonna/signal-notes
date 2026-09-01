@@ -1,5 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { signIn, evidence, USERS, firstCompleteBriefingId } from "./helpers";
+import {
+  signIn,
+  evidence,
+  reachGenerationSurfaceOrSkip,
+  requireModelKey,
+  USERS,
+  firstCompleteBriefingId,
+} from "./helpers";
 
 /**
  * P4 live sweep: the composer, and a REAL streaming generation end to end
@@ -28,6 +35,7 @@ test("composer: model picker, zero-selected copy, pick + generate", async ({ pag
 });
 
 test("live generation: stream a real briefing to completion", async ({ page }) => {
+  requireModelKey();
   test.setTimeout(180_000); // real model generation
   await signIn(page, USERS.northwind.email);
   await page.goto("/compose");
@@ -35,8 +43,8 @@ test("live generation: stream a real briefing to completion", async ({ page }) =
   await tiles.nth(0).click();
   await tiles.nth(1).click();
   await page.getByRole("button", { name: /Generate briefing/i }).click();
-  // lands on the live generation surface
-  await expect(page).toHaveURL(/\/briefings\/[0-9a-f-]+\/generating/, { timeout: 20_000 });
+  // lands on the live generation surface (or the limiter refused the run)
+  await reachGenerationSurfaceOrSkip(page);
   // rule 8: a labeled activity log appears (not a bare spinner) — a TOOL/READ line
   await expect(page.getByText(/Reading|Planning|Theme/i).first()).toBeVisible({ timeout: 60_000 });
   await evidence(page, "p4-live", "generation-midstream");

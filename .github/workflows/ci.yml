@@ -89,10 +89,18 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SEED_USER_PASSWORD: ${{ secrets.SEED_USER_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           if [ -z "$DATABASE_URL" ] || [ -z "$SEED_USER_PASSWORD" ]; then
             echo "::warning::E2E credentials are not configured; the browser suite did NOT run."
             echo "SKIP_E2E=1" >> "$GITHUB_ENV"
+          fi
+          # The model key is a SEPARATE question: everything except a real
+          # generation runs fine without it, so the suite proceeds and only the
+          # two live-run tests skip themselves (helpers.requireModelKey). Warn
+          # loudly, so an unset secret is never mistaken for a covered path.
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::warning::ANTHROPIC_API_KEY is not configured; the two live-generation tests were SKIPPED, not run. Add it as a repository secret to cover that path."
           fi
 
       - name: install browsers

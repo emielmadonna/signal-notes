@@ -55,7 +55,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 e2e/.results/
-e2e/fixtures/
 
 # Per-run SCREENSHOTS. e2e/helpers.ts writes here unless EVIDENCE_PROMOTE=1,
 # so verifying the app no longer rewrites the committed evidence in place.
@@ -66,4 +65,7 @@ shiplog/runs/
 shiplog/evidence/constitution-*.txt
 shiplog/evidence/r1-naked-tables-*.txt
 shiplog/evidence/r1-probe-2*.txt
+# The upload suite WRITES this one at run time (the 415 case) and deletes it
+# again; the four real fixtures next to it are committed on purpose, because
+# without them CI cannot exercise PDF/DOCX/RTF ingestion at all.
 e2e/fixtures/e2e-reject.jpeg
