@@ -138,3 +138,14 @@ specs without asserting unobserved results, builders don't add them.
   fatals only when a required variable is missing from BOTH sources; CI now
   uploads evidence artifacts on failure so no gate can fail unreadably again.
   (GitHub secrets were also re-set newline-free as hygiene while diagnosing.)
+
+## Catch #12 — 2026-09-01 03:55 (dispatcher self-catch, spec edit)
+- CLAIM: "spec updated" — the switch-account row removed from DESIGN-SPEC.
+- VICTIM: Builder-5, who would have read the untouched layout line and built
+  the inert row Emiel had just cut.
+- THE CATCH: the edit script printed success without verifying; a grep after
+  the commit showed the layout line unchanged (the search string missed a line
+  wrap). Evidence: grep output in session, fix commit on p2-design.
+- FIX + SYSTEM CHANGE: line fixed and re-verified to zero matches. Rule for
+  myself: every scripted text edit ends with a grep that proves the change,
+  BEFORE the commit, not after.
