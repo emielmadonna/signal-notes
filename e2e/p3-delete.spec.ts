@@ -1,6 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signIn, USERS } from "./helpers";
-import { readFileSync } from "node:fs";
+import { loadEnv, signIn, USERS } from "./helpers";
 import { createClient } from "@supabase/supabase-js";
 
 /**
@@ -19,10 +18,16 @@ import { createClient } from "@supabase/supabase-js";
  * depend on, or disturb, the seeded documents.
  */
 
-for (const line of readFileSync(".env.local", "utf8").split("\n")) {
-  const m = line.match(/^([A-Z_]+)=(.*)$/);
-  if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].trim();
-}
+// loadEnv tolerates a missing .env.local (CI has none — reading it directly
+// ENOENT'd at collection time and killed the WHOLE suite, not just this file).
+loadEnv();
+
+// The service-role fixtures need a key CI deliberately does not hold. Absent
+// key → the truthful skip, same pattern as requireModelKey in helpers.
+test.skip(
+  !process.env.SUPABASE_SERVICE_ROLE_KEY,
+  "SUPABASE_SERVICE_ROLE_KEY is not available here, so the service-role fixtures these tests seed can't be created."
+);
 
 const PREFIX = "ZZDEL-";
 
