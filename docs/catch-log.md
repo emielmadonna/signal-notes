@@ -163,3 +163,29 @@ specs without asserting unobserved results, builders don't add them.
 - FIX + SYSTEM CHANGE: declare the optical-size axis in the font config (one
   line); the P2 visual parity pass now includes a headline close-up comparison
   so optical-size regressions are visible in evidence.
+
+## Catch #14 — 2026-09-01 04:17 (migration 0002, REJECTED before apply)
+- CLAIM: audit_events is the append-only accountability trail.
+- VICTIM: the trail's own trustworthiness — any org member could insert lines
+  under a colleague's name or as "SYSTEM", fabricating completions and checks.
+  A forgeable audit trail is worse than none: it lends forged lines authority.
+- THE CATCH: the auditor noticed actor was free text with only org-membership
+  checked on insert — while every other writable table in the same two
+  migrations pins identity to the signed-in user. The inconsistency was the
+  tell. Evidence: migration lines 119 + 150-154 vs briefing_notes_insert.
+- FIX + SYSTEM CHANGE: actor_user_id column pinned to the signed-in user on
+  every authenticated insert; SYSTEM lines only writable server-side; display
+  name derived server-side, never client-supplied.
+
+## Catch #15 — 2026-09-01 04:17 (migration 0002, same review)
+- CLAIM: "once an audit line is written nobody can edit it or make it
+  disappear from the app" (the migration's own comment).
+- VICTIM: the deleted-briefing case — exactly when an audit trail matters
+  most. Cascade deletion would have silently purged a briefing's entire
+  history the moment the briefing was deleted.
+- THE CATCH: the auditor read the cascade rules against the comment's promise
+  and found them in direct contradiction. Evidence: migration lines 128/132
+  vs 147-149.
+- FIX + SYSTEM CHANGE: audit rows now survive their subjects — deleting a
+  briefing or document blanks the link but keeps the line, org-scoped. The
+  comment now tells the truth.

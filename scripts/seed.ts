@@ -1,8 +1,10 @@
 // scripts/seed.ts — idempotent seed for Signal Notes.
 //
 // Creates two organizations ("Northwind Advisory", "Meridian Group"), one user
-// each, membership rows, and six realistic documents per organization. Safe to
-// run twice: everything is looked up before it is created.
+// each, membership rows, and six realistic documents per organization (each
+// with its file type and byte size, plus one UPLOADED audit-trail line). Safe
+// to run twice: everything is looked up before it is created, and documents
+// that already exist are left for migration 0002's backfill.
 //
 // Run with:  npx tsx scripts/seed.ts   (from the repo root)
 //
@@ -165,6 +167,15 @@ const meridianDocuments: SeedDocument[] = [
 
 // --- helpers -----------------------------------------------------------------
 
+/**
+ * Audit-trail display label: the email's full local part, uppercased in the
+ * canvas's mono style — ana@… -> "ANA", marta@… -> "MARTA". Display only; the
+ * verified identity lives in audit_events.actor_user_id.
+ */
+function actorFromEmail(email: string): string {
+  return email.split("@")[0].toUpperCase();
+}
+
 async function getOrCreateOrg(name: string): Promise<string> {
   const existing = await admin
     .from("organizations")
@@ -237,6 +248,7 @@ async function ensureMembership(orgId: string, userId: string): Promise<void> {
 async function ensureDocument(
   orgId: string,
   userId: string,
+  actor: string,
   doc: SeedDocument
 ): Promise<void> {
   const existing = await admin
@@ -247,18 +259,45 @@ async function ensureDocument(
     .limit(1);
   failIf(existing.error, `looking up document "${doc.title}"`);
   if (existing.data && existing.data.length > 0) {
+    // Existing rows are left alone on purpose: migration 0002 backfills their
+    // ext/size_bytes, and re-runs must not pile up duplicate audit lines.
     console.log(`Document already exists: "${doc.title}"`);
     return;
   }
-  const inserted = await admin.from("documents").insert({
-    org_id: orgId,
-    title: doc.title,
-    kind: doc.kind,
-    body: doc.body,
-    added_by: userId,
-  });
+  // ext follows kind exactly like the migration's backfill: web copy was
+  // fetched from the web, everything else is seeded as pasted text.
+  const ext = doc.kind === "web_copy" ? "WEB" : "TXT";
+  const sizeBytes = Buffer.byteLength(doc.body);
+  const inserted = await admin
+    .from("documents")
+    .insert({
+      org_id: orgId,
+      title: doc.title,
+      kind: doc.kind,
+      body: doc.body,
+      added_by: userId,
+      ext,
+      size_bytes: sizeBytes,
+    })
+    .select("id")
+    .single();
   failIf(inserted.error, `creating document "${doc.title}"`);
   console.log(`Created document: "${doc.title}"`);
+
+  // One UPLOADED audit line per created document, so each seeded file's
+  // FILE HISTORY starts honestly. Service-role client bypasses RLS, which is
+  // fine for seeding; the composite (document_id, org_id) reference still
+  // holds because the document was just created in this same org.
+  const audit = await admin.from("audit_events").insert({
+    org_id: orgId,
+    document_id: inserted.data!.id,
+    event: "UPLOADED",
+    detail: `${ext} · ${sizeBytes} bytes · "${doc.title}"`,
+    actor,
+    actor_user_id: userId,
+  });
+  failIf(audit.error, `writing the UPLOADED audit line for "${doc.title}"`);
+  console.log(`Logged UPLOADED audit event for: "${doc.title}"`);
 }
 
 // --- main --------------------------------------------------------------------
@@ -275,11 +314,14 @@ async function main(): Promise<void> {
   await ensureMembership(northwindId, anaId);
   await ensureMembership(meridianId, martaId);
 
+  const anaActor = actorFromEmail("ana@northwind-advisory.test");
+  const martaActor = actorFromEmail("marta@meridiangroup.test");
+
   for (const doc of northwindDocuments) {
-    await ensureDocument(northwindId, anaId, doc);
+    await ensureDocument(northwindId, anaId, anaActor, doc);
   }
   for (const doc of meridianDocuments) {
-    await ensureDocument(meridianId, martaId, doc);
+    await ensureDocument(meridianId, martaId, martaActor, doc);
   }
 
   if (passwordFromEnv) {
