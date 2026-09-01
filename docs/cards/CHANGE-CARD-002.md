@@ -1,5 +1,5 @@
 CHANGE CARD #002
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; merged by dispatcher)
 WHAT CHANGED: The database exists: seven tables (organizations, members,
 documents, briefings, briefing sources, feedback, generation events), every
 one protected by organization-scoped row security, plus the seed script (two

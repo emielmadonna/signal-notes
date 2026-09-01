@@ -1,5 +1,5 @@
 CHANGE CARD #001
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; merged by dispatcher)
 WHAT CHANGED: The app now exists as a runnable skeleton: the web framework,
 the styling system, and the two database connectors (one for the server, one
 for the browser) that every later screen uses. No visible product yet.

@@ -1,5 +1,5 @@
 CHANGE CARD #003
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; merged by dispatcher)
 WHAT CHANGED: Signing in and out works, and the app is locked: every page
 except sign-in redirects strangers to sign-in (and returns them to where they
 were headed afterwards). A quiet "This page doesn't exist" stands where

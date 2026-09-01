@@ -1,5 +1,5 @@
 CHANGE CARD #004
-STATUS: PENDING-EMIEL
+STATUS: APPROVED by Emiel, 2026-09-01 (in session; merged by dispatcher)
 WHAT CHANGED: The safety net now runs by itself: every push to GitHub runs the
 constitution verifier, the type checker, and a full build. The verifier can
 also query the live database from this machine (it lacked the standard

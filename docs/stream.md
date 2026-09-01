@@ -56,3 +56,4 @@
 03:20:50 | builder-2 | Proven both ways: the isolation proof passes all 16 checks with the local secrets file, and passes all 16 again with the file removed and the settings supplied directly like the build system does. The secrets file is back in place, untouched, and no secret was ever printed.
 03:21:36 | dispatcher | The loader fix is proven in both modes on this machine. Committing and pushing so the GitHub check can run the isolation probe itself.
 03:23:39 | dispatcher | GitHub now runs the full gate itself: live database checks, the sixteen-check isolation probe, types, and the build — all green. The safety net no longer depends on my machine.
+03:35:51 | dispatcher | Emiel approves cards 001-004. Merging the foundation into main; the production deploy follows automatically. The approved design canvas has arrived — P2 begins.
