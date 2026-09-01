@@ -79,6 +79,19 @@ if grep -rn 'NEXT_PUBLIC_[A-Z_]*ANTHROPIC' .env* $SRC_DIRS 2>/dev/null | tee -a 
   FAIL=1
 fi
 
+# DB access: DATABASE_URL from env, else from .env.local (never committed).
+# This machine has no psql, so queries route through scripts/db-query.ts (pg).
+if [ -z "${DATABASE_URL:-}" ] && [ -f .env.local ]; then
+  DATABASE_URL=$(grep '^DATABASE_URL=' .env.local | cut -d= -f2- || true)
+fi
+dbq() {  # $1 = sql; prints rows, tab-separated (psql -At compatible)
+  if command -v psql >/dev/null 2>&1; then
+    psql "$DATABASE_URL" -At -c "$1"
+  else
+    DATABASE_URL="$DATABASE_URL" npx tsx scripts/db-query.ts "$1"
+  fi
+}
+
 # PROJECT PIN: every DB operation must target the pinned Signal Notes project.
 # Added after catch #4 (a pre-connected production DB for another product was
 # one apply_migration away from being polluted).
@@ -101,7 +114,7 @@ fi
 # ---- Live database checks (need DATABASE_URL; skipped until foundation phase) ----
 if [ -n "${DATABASE_URL:-}" ]; then
   # R1a: every public table has RLS enabled and at least one policy
-  psql "$DATABASE_URL" -At -c "
+  dbq "
     select c.relname
     from pg_class c join pg_namespace n on n.oid=c.relnamespace
     where n.nspname='public' and c.relkind='r'
@@ -121,8 +134,7 @@ if [ -n "${DATABASE_URL:-}" ]; then
   for f in supabase/migrations/*.sql; do
     [ -e "$f" ] || continue
     v=$(basename "$f" | grep -oE '^[0-9]+')
-    n=$(psql "$DATABASE_URL" -At -c \
-      "select count(*) from supabase_migrations.schema_migrations where version='$v';" 2>/dev/null || echo 0)
+    n=$(dbq "select count(*) from supabase_migrations.schema_migrations where version='$v';" 2>/dev/null || echo 0)
     if [ "$n" = "1" ]; then
       say "PASS" "R4 migration $v applied (tracking row present)"
     else

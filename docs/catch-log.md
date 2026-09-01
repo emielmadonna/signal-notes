@@ -53,3 +53,61 @@ specs without asserting unobserved results, builders don't add them.
   its own freshly created blank project; the project ref will be pinned in the
   repo (checked by the verifier before any DB operation) so no agent can ever
   aim a migration at the wrong database again.
+
+## Catch #5 — 2026-09-01 02:38 (P1, migration 0001, REJECTED before apply)
+- CLAIM: "every policy org-scoped via the helper; RLS proven."
+- VICTIM: any organization's briefings and documents. A member of org A could
+  attach org B's document to an org-A briefing (grounding then references
+  documents the org cannot legally read), and could hang forged child rows
+  (sources/feedback/log lines) off org B's briefings.
+- THE CATCH: Auditor read all 18 policies against rule 1 and found the three
+  child-table INSERT policies check only the row's own org_id — neither
+  briefing_id nor document_id is validated to belong to that same org, and
+  foreign keys bypass RLS. Evidence: migration lines 198-202, 219-226, 248-252.
+- FIX + SYSTEM CHANGE: composite foreign keys — unique (id, org_id) on parents,
+  child FKs reference (id, org_id) pairs — so the database itself forces
+  parent/child org agreement. Probe extended to attack exactly this (catch #6).
+
+## Catch #6 — 2026-09-01 02:38 (P1, two-org probe, REJECTED)
+- CLAIM: probe prints "all 8 checks passed. Each organization is invisible and
+  untouchable to the other."
+- VICTIM: Emiel, who merges on that sentence.
+- THE CATCH: Auditor read the probe: all 8 checks touch ONLY the documents
+  table. The four briefing tables — where catch #5's holes live — are never
+  probed. A probe that tried a cross-org briefing_sources insert would have
+  caught #5 on its own.
+- FIX + SYSTEM CHANGE: probe extended to cross-org attacks on briefings and
+  briefing_sources; its final claim reworded to state exactly what it proved.
+
+## Catch #7 — 2026-09-01 02:38 (P1, seed script, REJECTED)
+- CLAIM: seed prints "Set SEED_USER_PASSWORD in .env.local and re-run if the
+  probe script needs to sign in."
+- VICTIM: the R1 proof itself. If seed ever runs without the env var, users get
+  a discarded random password, and re-running does nothing (existing users are
+  returned without a password update) — the probe is locked out forever.
+- THE CATCH: Auditor traced the re-run path (getOrCreateUser returns existing
+  users untouched) and confirmed SEED_USER_PASSWORD was absent from .env.local
+  and .env.example, making the failure path the default path.
+- FIX + SYSTEM CHANGE: seed updates existing users' passwords when the env var
+  is set; SEED_USER_PASSWORD added to .env.example so it cannot be forgotten.
+
+## Catch #8 — 2026-09-01 02:48 (P1, sign-in redirect, REJECTED)
+- CLAIM: the ?next= guard ("must start with / and not //") blocks open redirects.
+- VICTIM: any user who signs in through a crafted link — their fresh session
+  lands on an attacker's page dressed as Signal Notes.
+- THE CATCH: Auditor constructed the bypass: browsers treat backslash as slash
+  in web addresses, so "/\evil.com" passes both guard conditions yet navigates
+  to evil.com; tab/newline tricks do the same. Evidence: signin-form.ts lines
+  11-18 + the two working bypass strings in the audit.
+- FIX + SYSTEM CHANGE: the guard now resolves the destination against our own
+  origin and requires it to stay there; the two bypass strings become
+  permanent gatecheck test cases.
+
+## Catch #9 — 2026-09-01 02:48 (P1, sign-out button, REJECTED)
+- CLAIM: card-3 surfaces built to rules 3 and 10.
+- VICTIM: anyone signing out on a slow connection — an inert button inviting
+  double submits; rule 10 allows no exceptions.
+- THE CATCH: Auditor compared the two buttons: sign-in shows "Signing in…",
+  sign-out has no busy state at all. Evidence: documents/page.tsx lines 53-57.
+- FIX + SYSTEM CHANGE: a reusable pending-aware submit button component that
+  every later server-action form uses, so the gap cannot recur form by form.
