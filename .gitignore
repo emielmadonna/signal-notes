@@ -1,0 +1,16 @@
+# Secrets — never committed (constitution: hard boundaries)
+.env
+.env.*
+!.env.example
+
+# Local-only notes for Emiel (private, not repo material)
+*.local.md
+
+# Dependencies / build output (populated in P1)
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# OS noise
+.DS_Store
