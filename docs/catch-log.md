@@ -292,3 +292,19 @@ specs without asserting unobserved results, builders don't add them.
   presence-vs-support limit is now on the ASSUMED list. Lesson: a verification
   claim ("zero X") must itself be verified by the tool, not asserted — the
   same standard the whole build runs on, applied to my own promise.
+
+## Catch #22 — 2026-09-01 (full E2E re-run after the account swap)
+- CLAIM: the E2E suite proves the whole app; "everything works."
+- VICTIM: any future run — 4 tests hard-coded one specific demo briefing id
+  (345eef7d…). That briefing was deleted during the heavy multi-run test churn
+  (a real DELETE — its cascade children went, audit rows survived nulled;
+  product FK behavior all correct, and user-deletion was NOT the cause since
+  briefings.created_by is on-delete-set-null and 6 sibling briefings survived).
+  With the id gone, the 4 tests failed — a pinned fixture, not a product bug.
+- THE CATCH: re-running the FULL suite after the admin-account swap (rather than
+  trusting the earlier green) surfaced the 4 failures.
+- FIX + SYSTEM CHANGE: added helpers.firstCompleteBriefingId() — every reading-
+  view / generation / responsive / theme / isolation / verify test now resolves
+  a LIVE complete briefing by clicking a COMPLETE card, so no vanished id can
+  break them or make an isolation check pass vacuously. Lesson: tests must not
+  pin to a single mutable row; resolve fixtures from live state.

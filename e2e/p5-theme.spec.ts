@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signIn, evidence, setTheme, USERS } from "./helpers";
+import { signIn, evidence, setTheme, USERS, firstCompleteBriefingId } from "./helpers";
 
 /**
  * P5 card-013 — THEME toggle (DESIGN-SPEC §1: two themes, dark default,
@@ -13,7 +13,6 @@ import { signIn, evidence, setTheme, USERS } from "./helpers";
  * reload). Both themes are asserted on <html> and photographed.
  */
 
-const COMPLETE_BRIEFING = "345eef7d-ace6-486e-ba49-2d38a4a7f37a";
 
 test("workspace: real toggle flips data-theme both ways and persists across reload", async ({
   page,
@@ -44,9 +43,10 @@ test("reading view: both themes apply on <html>, persist across reload, and are 
   page,
 }) => {
   await signIn(page, USERS.northwind.email);
-  await page.goto(`/briefings/${COMPLETE_BRIEFING}`);
+  const id = await firstCompleteBriefingId(page);
+  await page.goto(`/briefings/${id}`);
   await expect(
-    page.getByRole("heading", { name: /Three Conversations, One Pattern/i })
+    page.getByRole("dialog").getByRole("heading").first()
   ).toBeVisible({ timeout: 20_000 });
 
   // LIGHT — setTheme writes the cookie + localStorage the toggle would, then
@@ -54,7 +54,7 @@ test("reading view: both themes apply on <html>, persist across reload, and are 
   await setTheme(page, "light");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(
-    page.getByRole("heading", { name: /Three Conversations, One Pattern/i })
+    page.getByRole("dialog").getByRole("heading").first()
   ).toBeVisible({ timeout: 20_000 });
   // Persists across a second reload.
   await page.reload();

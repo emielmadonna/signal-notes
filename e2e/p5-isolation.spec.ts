@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { signIn, evidence, firstOwnDocumentId, USERS } from "./helpers";
+import {
+  signIn,
+  evidence,
+  firstOwnDocumentId,
+  firstCompleteBriefingId,
+  USERS,
+} from "./helpers";
 
 /**
  * P5 card-013 — TENANT ISOLATION, the UX face (constitution rule 1).
@@ -11,12 +17,17 @@ import { signIn, evidence, firstOwnDocumentId, USERS } from "./helpers";
  * error dump. RLS returns zero rows; the UI reads zero rows as "doesn't exist".
  */
 
-// A known org-A (Northwind / Ana) COMPLETE briefing (same id P4 reads).
-const ORG_A_BRIEFING = "345eef7d-ace6-486e-ba49-2d38a4a7f37a";
-// A distinctive fragment of org-A briefing content — must NEVER appear for Marta.
-const ORG_A_BRIEFING_TITLE = /Three Conversations, One Pattern/i;
-
 test.describe.configure({ mode: "serial" });
+
+// Capture a REAL org-A (Northwind) complete briefing id the honest way, as
+// that org's admin, then hand it to the cross-org tests. Resolved per test so
+// no vanished hard-coded id can make an isolation test pass vacuously.
+async function orgABriefingId(page: import("@playwright/test").Page): Promise<string> {
+  await signIn(page, USERS.northwind.email);
+  const id = await firstCompleteBriefingId(page);
+  await page.context().clearCookies();
+  return id;
+}
 
 test("Marta (org B) deep-linking an org-A document id → not-found, never org-A content", async ({
   page,
@@ -48,15 +59,14 @@ test("Marta (org B) deep-linking an org-A document id → not-found, never org-A
 test("Marta (org B) deep-linking an org-A briefing id → not-found, never org-A content", async ({
   page,
 }) => {
+  const orgABriefing = await orgABriefingId(page);
   await signIn(page, USERS.meridian.email);
-  await page.goto(`/briefings/${ORG_A_BRIEFING}`);
+  await page.goto(`/briefings/${orgABriefing}`);
   await expect(page.getByText("This page doesn't exist.")).toBeVisible({
     timeout: 15_000,
   });
-  // The org-A briefing's real heading must NOT render for a different org.
-  await expect(page.getByRole("heading", { name: ORG_A_BRIEFING_TITLE })).toHaveCount(
-    0
-  );
+  // No org-A briefing content renders for a different org (no reading sheet).
+  await expect(page.getByRole("dialog").getByText(/GROUNDED IN/i)).toHaveCount(0);
   await expect(page.getByText("We couldn't load")).toHaveCount(0);
   await expect(page.getByText(/row-level security|RLS|stack|Error:/i)).toHaveCount(
     0
@@ -69,13 +79,13 @@ test("Marta (org B) deep-linking an org-A briefing /generating id → not-found"
 }) => {
   // The live generation surface is org-scoped the same way: a cross-org id
   // resumes nothing and renders not-found, never org-A's streamed log.
+  const orgABriefing = await orgABriefingId(page);
   await signIn(page, USERS.meridian.email);
-  await page.goto(`/briefings/${ORG_A_BRIEFING}/generating`);
+  await page.goto(`/briefings/${orgABriefing}/generating`);
   await expect(page.getByText("This page doesn't exist.")).toBeVisible({
     timeout: 20_000,
   });
-  await expect(page.getByRole("heading", { name: ORG_A_BRIEFING_TITLE })).toHaveCount(
-    0
-  );
+  // No org-A generation log/body renders for a different org.
+  await expect(page.getByText(/GROUNDED IN|STEPS ·/i)).toHaveCount(0);
   await evidence(page, "p5-isolation", "cross-org-generating-not-found");
 });

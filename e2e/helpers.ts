@@ -54,6 +54,31 @@ export async function firstOwnDocumentId(page: Page): Promise<string> {
   return m[1];
 }
 
+/**
+ * Grab a real COMPLETE briefing id owned by the signed-in user, the way a user
+ * reaches one: click a briefing card stamped COMPLETE and read the id the
+ * router lands on. Used so the reading-view / generation / responsive / theme
+ * specs point at a genuine live briefing instead of a hard-coded id that can
+ * be removed during test churn (which is exactly what happened to the original
+ * demo briefing — the product was fine; the pinned id was the fragility).
+ */
+export async function firstCompleteBriefingId(page: Page): Promise<string> {
+  await page.goto("/");
+  // A complete briefing card carries the "COMPLETE" stamp; its card button
+  // routes to /briefings/[id]. Click the first one and capture the id.
+  const card = page
+    .locator("main")
+    .getByRole("button")
+    .filter({ hasText: /COMPLETE/ })
+    .first();
+  await card.waitFor({ state: "visible", timeout: 15_000 });
+  await card.click();
+  await page.waitForURL(/\/briefings\/[0-9a-f-]+(?!\/generating)/, { timeout: 15_000 });
+  const m = page.url().match(/\/briefings\/([0-9a-f-]+)/);
+  if (!m) throw new Error("could not capture a complete briefing id from the workspace");
+  return m[1];
+}
+
 /** Screenshot into shiplog/evidence/<dir>/<name>.png (SHIPLOG references these). */
 export async function evidence(page: Page, dir: string, name: string): Promise<void> {
   const target = path.join("shiplog", "evidence", dir);

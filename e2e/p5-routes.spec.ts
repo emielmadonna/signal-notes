@@ -17,7 +17,9 @@ import { signIn, USERS } from "./helpers";
 // Every protected PAGE route the product exposes. The bracket routes use real
 // (or realistic) ids — the redirect happens in middleware BEFORE the route
 // ever runs, so the id only has to be shaped like one.
-const COMPLETE_BRIEFING = "345eef7d-ace6-486e-ba49-2d38a4a7f37a";
+// Any well-formed id — these routes redirect (pages) or 401 (APIs) BEFORE
+// any briefing lookup, so the value is never resolved.
+const COMPLETE_BRIEFING = "00000000-0000-0000-0000-000000000000";
 const SOME_ID = "00000000-0000-0000-0000-000000000000";
 
 const PROTECTED_PAGES: string[] = [

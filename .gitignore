@@ -61,3 +61,4 @@ e2e/fixtures/
 shiplog/evidence/constitution-*.txt
 shiplog/evidence/r1-naked-tables-*.txt
 shiplog/evidence/r1-probe-2*.txt
+e2e/fixtures/e2e-reject.jpeg

@@ -1,5 +1,5 @@
 import { test } from "@playwright/test";
-import { signIn, evidence, USERS } from "./helpers";
+import { signIn, evidence, USERS, firstCompleteBriefingId } from "./helpers";
 
 // Final 1:1 verification capture — every surface at the canvas's 1440px design
 // width, into shiplog/evidence/verify/. Compared by the dispatcher against
@@ -41,12 +41,13 @@ test("capture every surface at 1440", async ({ page }) => {
   await page.goto("/compose");
   await page.waitForTimeout(800);
   await evidence(page, "verify", "06-composer");
-  // 7. READING VIEW (the real complete briefing)
-  await page.goto("/briefings/345eef7d-ace6-486e-ba49-2d38a4a7f37a");
+  // 7. READING VIEW (a real complete briefing, resolved live)
+  const briefingId = await firstCompleteBriefingId(page);
+  await page.goto(`/briefings/${briefingId}`);
   await page.waitForTimeout(1500);
   await evidence(page, "verify", "07-reading-view");
-  // 8. GENERATION surface (resume the complete briefing's log)
-  await page.goto("/briefings/345eef7d-ace6-486e-ba49-2d38a4a7f37a/generating");
+  // 8. GENERATION surface (resume that briefing's log)
+  await page.goto(`/briefings/${briefingId}/generating`);
   await page.waitForTimeout(2000);
   await evidence(page, "verify", "08-generation");
   // 9. LIGHT THEME workspace

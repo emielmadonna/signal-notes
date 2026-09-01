@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { signIn, evidence, firstOwnDocumentId, USERS } from "./helpers";
+import { signIn, evidence, firstOwnDocumentId, firstCompleteBriefingId, USERS } from "./helpers";
 
 /**
  * P5 card-013 — RESPONSIVE FLOOR at 768px.
@@ -11,7 +11,6 @@ import { signIn, evidence, firstOwnDocumentId, USERS } from "./helpers";
  * photographed into shiplog/evidence/p5-768/.
  */
 
-const COMPLETE_BRIEFING = "345eef7d-ace6-486e-ba49-2d38a4a7f37a";
 const TOLERANCE = 2; // px, for sub-pixel layout rounding
 
 async function assertNoHorizontalOverflow(page: Page, label: string) {
@@ -88,7 +87,8 @@ test("generation surface at 768px holds (complete briefing /generating)", async 
   page,
 }) => {
   await signIn(page, USERS.northwind.email);
-  await page.goto(`/briefings/${COMPLETE_BRIEFING}/generating`);
+  const id = await firstCompleteBriefingId(page);
+  await page.goto(`/briefings/${id}/generating`);
   await expect(page.getByText(/COMPLETE/i).first()).toBeVisible({
     timeout: 30_000,
   });
@@ -98,9 +98,10 @@ test("generation surface at 768px holds (complete briefing /generating)", async 
 
 test("reading view at 768px holds", async ({ page }) => {
   await signIn(page, USERS.northwind.email);
-  await page.goto(`/briefings/${COMPLETE_BRIEFING}`);
+  const id = await firstCompleteBriefingId(page);
+  await page.goto(`/briefings/${id}`);
   await expect(
-    page.getByRole("heading", { name: /Three Conversations, One Pattern/i })
+    page.getByRole("dialog").getByRole("heading").first()
   ).toBeVisible({ timeout: 20_000 });
   await assertNoHorizontalOverflow(page, "reading-view");
   await evidence(page, "p5-768", "reading-view");
