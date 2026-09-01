@@ -1,0 +1,19 @@
+Proof that Signal Notes targets a fresh, blank database (2026-09-01 ~02:30)
+
+1. Wrong-project near-miss (catch #4): the pre-connected Supabase MCP pointed at
+   ootyfqiujstibjtspdrp.supabase.co ("OutreachProject"), whose live migration
+   table lists ~300 applied versions for another product, and whose public
+   schema (r4-wrong-project-tables-20260901.txt, saved raw in this directory)
+   already contains an "organizations" table. Zero writes were sent there.
+
+2. New project created via Supabase CLI (not dashboard):
+   supabase projects create signal-notes --org-id sifwwgdaymooocyrblml
+   -> ref rqvyiclwhihhsxymenrp, https://rqvyiclwhihhsxymenrp.supabase.co
+   Ref pinned in supabase/PROJECT_REF; verifier fails if link or DATABASE_URL
+   ever points elsewhere.
+
+3. Blank-state proof: `supabase migration list --linked` against the new
+   project returns an empty table (no local, no remote migrations):
+      Local | Remote | Time (UTC)
+     -------|--------|------------
+   (output captured 02:30, before any migration was committed or applied)

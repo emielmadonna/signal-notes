@@ -1,0 +1,55 @@
+== R4 evidence: migration 20260901000001_foundation applied — 2026-09-01 02:54:22 ==
+
+-- migrations tracking row --
+20260901000001	foundation
+
+-- information_schema.columns (public schema, per table) --
+briefing_feedback	id	uuid	NO
+briefing_feedback	briefing_id	uuid	NO
+briefing_feedback	org_id	uuid	NO
+briefing_feedback	user_id	uuid	NO
+briefing_feedback	rating	text	NO
+briefing_feedback	annotation	text	YES
+briefing_feedback	created_at	timestamp with time zone	NO
+briefing_feedback	updated_at	timestamp with time zone	NO
+briefing_sources	briefing_id	uuid	NO
+briefing_sources	document_id	uuid	NO
+briefing_sources	org_id	uuid	NO
+briefings	id	uuid	NO
+briefings	org_id	uuid	NO
+briefings	title	text	YES
+briefings	status	text	NO
+briefings	body_md	text	YES
+briefings	model	text	NO
+briefings	created_by	uuid	YES
+briefings	created_at	timestamp with time zone	NO
+briefings	completed_at	timestamp with time zone	YES
+documents	id	uuid	NO
+documents	org_id	uuid	NO
+documents	title	text	NO
+documents	kind	text	NO
+documents	body	text	NO
+documents	added_by	uuid	YES
+documents	created_at	timestamp with time zone	NO
+documents	updated_at	timestamp with time zone	NO
+generation_events	id	bigint	NO
+generation_events	briefing_id	uuid	NO
+generation_events	org_id	uuid	NO
+generation_events	kind	text	NO
+generation_events	content	text	NO
+generation_events	created_at	timestamp with time zone	NO
+org_members	org_id	uuid	NO
+org_members	user_id	uuid	NO
+org_members	created_at	timestamp with time zone	NO
+organizations	id	uuid	NO
+organizations	name	text	NO
+organizations	created_at	timestamp with time zone	NO
+
+-- RLS status + policy count per table --
+briefing_feedback	true	3
+briefing_sources	true	2
+briefings	true	3
+documents	true	4
+generation_events	true	2
+org_members	true	1
+organizations	true	1

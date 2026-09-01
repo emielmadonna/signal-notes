@@ -1,0 +1,15 @@
+== Constitution Verifier == 20260901-023454
+PASS   R2 no select("*") or empty select()
+PASS   R3 no empty catch {}
+PASS   R3b writes reference their { error }
+PASS   R5 prompts only in lib/prompts/
+PASS   KEY no SERVICE_ROLE in app code
+PASS   KEY no hardcoded Anthropic key (sk-ant-) anywhere
+PASS   KEY ANTHROPIC_API_KEY only reachable from server code
+PASS   PIN linked project matches pinned ref rqvyiclwhihhsxymenrp
+PASS   R1a RLS enabled + policy present on every public table
+FAIL   R4 GHOST MIGRATION: supabase/migrations/20260901000001_foundation.sql is committed but has no tracking row in the live DB
+FAIL   R1b two-org probe FAILED: see shiplog/evidence/r1-probe-20260901-023454.txt
+PASS   typecheck
+
+FAIL   CONSTITUTION: violations above. Evidence: shiplog/evidence/constitution-20260901-023454.txt

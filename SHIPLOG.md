@@ -29,10 +29,21 @@ All Signal Notes application code, schema, and migrations: after "go".
 > section under ASSUMED, honestly.
 
 ### R1 — Tenant isolation (proven, not assumed)
-- [ ] RLS enabled + policy present on every table. Query + output: evidence/r1-rls-tables.txt
-- [ ] Two-org probe: signed in as user A (Org 1) and user B (Org 2); cross-org
-      selects return 0 rows; cross-org insert/update rejected. Script:
-      scripts/two-org-probe.ts. Output: evidence/r1-probe-YYYYMMDD.txt
+- [x] 2026-09-01 02:54 — RLS enabled + at least one policy on every public
+      table (7/7, 16 policies). Query: pg_class/pg_policies via the verifier
+      (scripts/constitution.sh R1a). Output inside
+      shiplog/evidence/constitution-20260901-025459.txt.
+- [x] 2026-09-01 02:54 — Two-org probe: signed in as ana@northwind-advisory.test
+      (Northwind Advisory) and marta@meridiangroup.test (Meridian Group); 16/16
+      checks pass: cross-org selects on documents AND briefings return 0 rows;
+      cross-org inserts rejected by RLS; cross-org update touches 0 rows;
+      linking an own-org briefing to the other org's document, and writing a
+      log line against the other org's briefing, are both rejected by the
+      composite foreign keys with Postgres code 23503. Script:
+      scripts/two-org-probe.ts (committed, runs inside the verifier and CI).
+      Output: shiplog/evidence/r1-probe-20260901-025459.txt.
+      Context: the probe's composite-FK checks exist because the auditor
+      REJECTED the first migration draft for exactly that hole — catch #5/#6.
 
 ### R2 — No wildcard selects
 - [ ] Verifier select-check output: evidence/r2-selects.txt
@@ -43,9 +54,19 @@ All Signal Notes application code, schema, and migrations: after "go".
 
 ### R4 — Migrations verified live
 > One block PER migration file:
-- [ ] supabase/migrations/____.sql — applied on: ____
-      information_schema.columns result: [paste]
-      migrations tracking row for this version: [paste]
+- [x] supabase/migrations/20260901000001_foundation.sql — committed in
+      3b87d55 at 02:53, applied 02:54 via `supabase db push` (file first,
+      database second), verified 02:54.
+      migrations tracking row: `20260901000001 | foundation`
+      information_schema.columns: all 7 tables present with every declared
+      column (41 columns total, incl. briefings.model and
+      generation_events.kind) — full paste in
+      shiplog/evidence/r4-migration-0001-verified-20260901.txt.
+      Also on file: the ghost-migration detector FAILING before the apply
+      (constitution-20260901-023502.txt) and PASSING after
+      (constitution-20260901-025459.txt) — the gate works in both directions.
+      Related: shiplog/evidence/r4-blank-project-proof-20260901.txt (catch #4:
+      the pre-connected production database this build refused to touch).
 
 ### R5 — Prompts in one module
 - [ ] Verifier inline-prompt check: evidence/r5-prompts.txt

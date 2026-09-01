@@ -1,0 +1,21 @@
+Seeding Signal Notes…
+Created organization "Northwind Advisory".
+Created organization "Meridian Group".
+Created user ana@northwind-advisory.test.
+Created user marta@meridiangroup.test.
+Added user aca91bd9-2ac0-403a-b02a-b255d68ad47e to organization 87d76a55-6477-4837-80e9-8e2448ce5ef6.
+Added user 70d74775-1ef3-4e7d-b819-3115fd870ad3 to organization 3362eaa6-33a3-4a2e-94d4-c18a6a21262c.
+Created document: "Interview notes — Priya Raghavan, VP Sales at Callisto Metrics (Aug 27, 2026)"
+Created document: "Interview notes — churned client debrief, Harbor & Lane (Aug 20, 2026)"
+Created document: "Call transcript — discovery call with Delacroix Logistics (Aug 31, 2026)"
+Created document: "Call transcript — pricing workshop with Callisto Metrics (Sep 1, 2026)"
+Created document: "Homepage copy draft v3 — Northwind Advisory"
+Created document: "Q3 pipeline review memo (Aug 29, 2026)"
+Created document: "Interview notes — CFO panel at MidMarket Finance Summit (Aug 21, 2026)"
+Created document: "Call transcript — renewal call, Vantage Credit Union (Aug 26, 2026)"
+Created document: "Call transcript — partner introduction, Bluepeak Systems (Sep 1, 2026)"
+Created document: "Landing page copy — Meridian Benchmarking service"
+Created document: "Interview notes — win/loss review, Ostrander Foods RFP (Aug 24, 2026)"
+Created document: "Sales kickoff briefing notes — Q4 push (Sep 1, 2026)"
+Seed user password: set (from SEED_USER_PASSWORD).
+Seed complete.

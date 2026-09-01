@@ -1,0 +1,1 @@
+Missing SEED_USER_PASSWORD in .env.local — the probe needs it to sign in as the seeded users.

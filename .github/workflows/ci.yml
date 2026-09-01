@@ -1,0 +1,42 @@
+name: constitution
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Live DB checks activate when the DATABASE_URL secret is configured;
+      # without it the verifier runs every static check and warns on DB skips.
+      # SEED_USER_PASSWORD lets the two-org probe sign in as the seeded users.
+      - name: constitution verifier
+        run: npm run constitution
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SEED_USER_PASSWORD: ${{ secrets.SEED_USER_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      # Evidence files are written on the runner; without this they vanish on
+      # failure and the FAIL line names a file nobody can read (found the hard
+      # way when the first live-check run failed opaquely).
+      - name: upload evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiplog-evidence
+          path: shiplog/evidence/
+      - name: typecheck
+        run: npx tsc --noEmit
+      - name: build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
